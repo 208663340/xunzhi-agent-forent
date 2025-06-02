@@ -2,6 +2,14 @@
   <div class="chat-container">
     <!-- 左侧边栏 -->
     <div class="sidebar">
+      <!-- Agent广场入口 -->
+      <div class="agent-market-entry">
+        <el-button type="success" size="small" @click="goToAgentMarket" class="market-button">
+          <el-icon><Grid /></el-icon>
+          Agent广场
+        </el-button>
+      </div>
+      
       <div class="sidebar-header">
         <h3>历史会话</h3>
         <el-button type="primary" size="small" @click="createNewSession">
@@ -109,8 +117,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, nextTick, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { Grid } from '@element-plus/icons-vue'
 
 interface Message {
   type: 'user' | 'ai'
@@ -125,6 +135,7 @@ interface Session {
   lastMessage: Date
 }
 
+const router = useRouter()
 const userStore = useUserStore()
 const messagesContainer = ref<HTMLElement>()
 const inputMessage = ref('')
@@ -263,6 +274,11 @@ const switchSession = (sessionId: string) => {
   currentSessionId.value = sessionId
 }
 
+// 跳转到Agent广场
+const goToAgentMarket = () => {
+  router.push('/agent-market')
+}
+
 onMounted(() => {
   // 初始化时可以添加欢迎消息
 })
@@ -278,10 +294,20 @@ onMounted(() => {
 
 .sidebar {
   width: 280px;
-  background: white;
+  background: #f5f7fa;
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
+}
+
+.agent-market-entry {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.market-button {
+  width: 100%;
+  justify-content: center;
 }
 
 .sidebar-header {
@@ -338,7 +364,7 @@ onMounted(() => {
   flex-direction: column;
   padding: 20px;
   max-width: calc(100% - 280px);
-  background: #f5f7fa;
+  background: white;
 }
 
 .messages-container {

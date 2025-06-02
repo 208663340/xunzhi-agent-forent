@@ -27,6 +27,26 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/RegisterView.vue'),
     },
+    {
+      path: '/camera',
+      name: 'camera',
+      component: () => import('../views/CameraView.vue'),
+    },
+    {
+      path: '/microphone',
+      name: 'microphone',
+      component: () => import('../views/MicrophoneView.vue'),
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: () => import('../views/ChatView.vue'),
+    },
+    {
+      path: '/agent-market',
+      name: 'agent-market',
+      component: () => import('../views/AgentMarketView.vue'),
+    },
   ],
 })
 

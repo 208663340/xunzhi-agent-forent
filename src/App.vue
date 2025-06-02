@@ -40,19 +40,23 @@ onMounted(() => {
     <!-- 顶部导航栏 -->
     <header class="app-header">
       <div class="header-content">
-        <!-- 左侧Logo和标题 -->
+        <!-- 左侧Logo、标题和导航整体 -->
         <div class="header-left">
           <div class="logo-section">
             <el-icon class="logo-icon" size="32"><ChatDotRound /></el-icon>
             <span class="app-title">智能问答助手</span>
           </div>
+          
+          <!-- 导航栏 -->
+          <nav class="header-nav">
+            <router-link to="/" class="nav-link">首页</router-link>
+            <router-link to="/chat" class="nav-link">对话</router-link>
+            <router-link to="/agent-market" class="nav-link">Agent广场</router-link>
+            <router-link to="/about" class="nav-link">关于</router-link>
+            <router-link to="/camera" class="nav-link">摄像头</router-link>
+            <router-link to="/microphone" class="nav-link">麦克风</router-link>
+          </nav>
         </div>
-        
-        <!-- 中间导航 -->
-        <nav class="header-nav">
-          <router-link to="/" class="nav-link">首页</router-link>
-          <router-link to="/about" class="nav-link">关于</router-link>
-        </nav>
         
         <!-- 右侧用户区域 -->
         <div class="header-right">
@@ -114,9 +118,8 @@ onMounted(() => {
 }
 
 .header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
+  width: 100%;
+  padding: 0 20px;
   height: 64px;
   display: flex;
   align-items: center;
@@ -124,7 +127,9 @@ onMounted(() => {
 }
 
 .header-left {
-  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 40px;
 }
 
 .logo-section {
@@ -177,7 +182,6 @@ onMounted(() => {
 }
 
 .header-right {
-  flex: 1;
   display: flex;
   justify-content: flex-end;
 }
@@ -219,9 +223,8 @@ onMounted(() => {
 
 .app-main {
   flex: 1;
-  background: #f5f7fa;
+  background: transparent;
   position: relative;
-  overflow: hidden;
 }
 
 /* 转场动画样式 */
@@ -261,31 +264,35 @@ onMounted(() => {
 }
 
 /* 响应式设计 */
-@media (min-width: 1600px) {
-  .header-content {
-    max-width: 1600px;
-    padding: 0 60px;
-  }
-}
-
 @media (max-width: 1024px) {
   .header-content {
-    max-width: 100%;
-    padding: 0 24px;
+    padding: 0 16px;
   }
   
   .header-nav {
+    gap: 24px;
+  }
+  
+  .header-left {
     gap: 24px;
   }
 }
 
 @media (max-width: 768px) {
   .header-content {
-    padding: 0 16px;
+    padding: 0 12px;
+  }
+  
+  .header-left {
+    gap: 16px;
   }
   
   .header-nav {
-    display: none;
+    gap: 16px;
+  }
+  
+  .nav-link {
+    font-size: 14px;
   }
   
   .app-title {
@@ -294,6 +301,16 @@ onMounted(() => {
   
   .username {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-nav {
+    display: none;
+  }
+  
+  .app-title {
+    font-size: 16px;
   }
 }
 </style>
