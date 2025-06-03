@@ -5,7 +5,7 @@
         <h2>登录</h2>
         <p>欢迎使用智能问答系统</p>
       </div>
-      
+
       <el-form
         ref="loginFormRef"
         :model="loginForm"
@@ -21,7 +21,7 @@
             prefix-icon="User"
           />
         </el-form-item>
-        
+
         <el-form-item prop="password">
           <el-input
             v-model="loginForm.password"
@@ -32,7 +32,7 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button
             type="primary"
@@ -45,13 +45,13 @@
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="login-footer">
         <span>还没有账号？</span>
         <el-button type="text" @click="goToRegister">立即注册</el-button>
       </div>
     </div>
-    
+
 
   </div>
 </template>
@@ -61,6 +61,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { userApi } from '@/api'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -93,25 +94,38 @@ const loginRules: FormRules = {
 // 处理登录
 const handleLogin = async () => {
   if (!loginFormRef.value) return
-  
-  await loginFormRef.value.validate((valid) => {
+
+  await loginFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
-      
-      // 模拟登录API调用
-      setTimeout(() => {
-        // 这里应该调用实际的登录API
+
+      try {
+        // 调用登录API
+        const response = await userApi.login({
+          username: loginForm.username,
+          password: loginForm.password
+        })
+
+        const { token } = response.data.data
+
+        // 保存token
+        localStorage.setItem('token', token)
+
+        // 构造用户数据
         const userData = {
-          id: '1',
+          id: Date.now().toString(), // 临时ID，实际应该从后端获取
           username: loginForm.username,
           avatar: '' // 可以设置默认头像
         }
-        
+
         userStore.login(userData)
         ElMessage.success('登录成功')
         router.push('/')
+      } catch (error: any) {
+        ElMessage.error(error.message || '登录失败，请检查用户名和密码')
+      } finally {
         loading.value = false
-      }, 1000)
+      }
     }
   })
 }

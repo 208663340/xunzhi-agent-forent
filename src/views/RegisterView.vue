@@ -5,7 +5,7 @@
         <h2>注册账号</h2>
         <p>创建您的智能问答系统账号</p>
       </div>
-      
+
       <el-form
         ref="registerFormRef"
         :model="registerForm"
@@ -21,7 +21,16 @@
             prefix-icon="User"
           />
         </el-form-item>
-        
+
+        <el-form-item prop="realName">
+          <el-input
+            v-model="registerForm.realName"
+            placeholder="请输入真实姓名"
+            size="large"
+            prefix-icon="UserFilled"
+          />
+        </el-form-item>
+
         <el-form-item prop="phone">
           <el-input
             v-model="registerForm.phone"
@@ -30,7 +39,16 @@
             prefix-icon="Phone"
           />
         </el-form-item>
-        
+
+        <el-form-item prop="mail">
+          <el-input
+            v-model="registerForm.mail"
+            placeholder="请输入邮箱"
+            size="large"
+            prefix-icon="Message"
+          />
+        </el-form-item>
+
         <el-form-item prop="password">
           <el-input
             v-model="registerForm.password"
@@ -41,7 +59,7 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item prop="confirmPassword">
           <el-input
             v-model="registerForm.confirmPassword"
@@ -52,7 +70,7 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button
             type="primary"
@@ -65,7 +83,7 @@
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="register-footer">
         <span>已有账号？</span>
         <el-button type="text" @click="goToLogin">立即登录</el-button>
@@ -78,6 +96,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { userApi } from '@/api'
+import type { UserRegisterReq } from '@/api/types'
 
 const router = useRouter()
 
@@ -85,19 +105,43 @@ const registerFormRef = ref<FormInstance>()
 const loading = ref(false)
 
 // 注册表单
-const registerForm = reactive({
+const registerForm = reactive<UserRegisterReq & { confirmPassword: string }>({
   username: '',
   password: '',
   confirmPassword: '',
-  phone: ''
+  realName: '',
+  phone: '',
+  mail: ''
 })
 
-// 密码确认验证
+// 自定义验证规则
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入密码'))
   } else if (value !== registerForm.password) {
     callback(new Error('两次输入密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const validatePhone = (rule: any, value: any, callback: any) => {
+  const phoneRegex = /^1[3-9]\d{9}$/
+  if (value === '') {
+    callback(new Error('请输入手机号'))
+  } else if (!phoneRegex.test(value)) {
+    callback(new Error('请输入正确的手机号格式'))
+  } else {
+    callback()
+  }
+}
+
+const validateEmail = (rule: any, value: any, callback: any) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (value === '') {
+    callback(new Error('请输入邮箱'))
+  } else if (!emailRegex.test(value)) {
+    callback(new Error('请输入正确的邮箱格式'))
   } else {
     callback()
   }
@@ -116,29 +160,43 @@ const registerRules: FormRules = {
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' }
   ],
+  realName: [
+    { required: true, message: '请输入真实姓名', trigger: 'blur' },
+    { min: 2, max: 10, message: '姓名长度在 2 到 10 个字符', trigger: 'blur' }
+  ],
   phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+    { required: true, validator: validatePhone, trigger: 'blur' }
+  ],
+  mail: [
+    { required: true, validator: validateEmail, trigger: 'blur' }
   ]
 }
 
 // 处理注册
 const handleRegister = async () => {
   if (!registerFormRef.value) return
-  
-  await registerFormRef.value.validate((valid) => {
+
+  await registerFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
-      
-      // 模拟注册API调用
-      setTimeout(() => {
-        // 这里应该调用实际的注册API
+
+      try {
+        // 调用注册API
+        await userApi.register({
+          username: registerForm.username,
+          password: registerForm.password,
+          realName: registerForm.realName,
+          phone: registerForm.phone,
+          mail: registerForm.mail
+        })
+
         ElMessage.success('注册成功，请登录')
-        loading.value = false
-        
-        // 注册成功后跳转到登录页面
         router.push('/login')
-      }, 1000)
+      } catch (error: any) {
+        ElMessage.error(error.message || '注册失败，请重试')
+      } finally {
+        loading.value = false
+      }
     }
   })
 }
@@ -222,11 +280,11 @@ const goToLogin = () => {
   .register-container {
     padding: 10px;
   }
-  
+
   .register-card {
     padding: 30px 20px;
   }
-  
+
   .register-header h2 {
     font-size: 24px;
   }

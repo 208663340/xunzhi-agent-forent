@@ -9,7 +9,7 @@
           Agent广场
         </el-button>
       </div>
-      
+
       <div class="sidebar-header">
         <h3>历史会话</h3>
         <el-button type="primary" size="small" @click="createNewSession">
@@ -18,8 +18,8 @@
         </el-button>
       </div>
       <div class="session-list">
-        <div 
-          v-for="session in sessions" 
+        <div
+          v-for="session in sessions"
           :key="session.id"
           class="session-item"
           :class="{ active: session.id === currentSessionId }"
@@ -30,7 +30,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 主聊天区域 -->
     <div class="chat-main">
       <!-- 消息列表 -->
@@ -42,7 +42,7 @@
             <p>我是您的AI助手，有什么问题可以随时问我</p>
           </div>
         </div>
-        
+
         <div
           v-for="(message, index) in messages"
           :key="index"
@@ -57,7 +57,7 @@
               <el-icon><Robot /></el-icon>
             </el-avatar>
           </div>
-          
+
           <div class="message-content">
             <div class="message-bubble">
               <div class="message-text">{{ message.content }}</div>
@@ -65,7 +65,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 加载中提示 -->
         <div v-if="isLoading" class="message-item ai-message">
           <div class="message-avatar">
@@ -84,7 +84,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 输入区域 -->
       <div class="input-area">
         <div class="input-container">
@@ -121,19 +121,11 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { Grid } from '@element-plus/icons-vue'
+import { agentApi } from '@/api'
+import type { ChatMessage, ChatSession } from '@/api/types'
 
-interface Message {
-  type: 'user' | 'ai'
-  content: string
-  timestamp: Date
-}
-
-interface Session {
-  id: string
-  title: string
-  messages: Message[]
-  lastMessage: Date
-}
+// 使用从API types导入的类型
+// ChatMessage 和 ChatSession 已从 @/api/types 导入
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -141,7 +133,7 @@ const messagesContainer = ref<HTMLElement>()
 const inputMessage = ref('')
 const isLoading = ref(false)
 const currentSessionId = ref('session-1')
-const sessions = ref<Session[]>([
+const sessions = ref<ChatSession[]>([
   {
     id: 'session-1',
     title: '新对话',
@@ -158,38 +150,38 @@ const messages = computed(() => {
 // 发送消息
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || isLoading.value) return
-  
-  const userMessage: Message = {
+
+  const userMessage: ChatMessage = {
     type: 'user',
     content: inputMessage.value.trim(),
     timestamp: new Date()
   }
-  
+
   // 添加消息到当前会话
   const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
   if (currentSession) {
     currentSession.messages.push(userMessage)
     currentSession.lastMessage = new Date()
-    
+
     // 如果是第一条消息，更新会话标题
     if (currentSession.messages.length === 1) {
       currentSession.title = userMessage.content.slice(0, 20) + (userMessage.content.length > 20 ? '...' : '')
     }
   }
-  
+
   const question = inputMessage.value.trim()
   inputMessage.value = ''
-  
+
   // 滚动到底部
   await nextTick()
   scrollToBottom()
-  
+
   // 显示加载状态
   isLoading.value = true
-  
+
   try {
-    // 模拟API调用
-    await simulateAIResponse(question)
+    // 调用AI聊天API
+    await chatWithAI(question)
   } catch (error) {
     ElMessage.error('发送失败，请重试')
   } finally {
@@ -197,29 +189,77 @@ const sendMessage = async () => {
   }
 }
 
-// 模拟AI响应
-const simulateAIResponse = async (question: string) => {
-  return new Promise<void>((resolve) => {
-    setTimeout(() => {
-      const aiMessage: Message = {
-        type: 'ai',
-        content: `这是对"${question}"的回答。我是AI助手，正在为您提供帮助。这里可以连接到您的后端API来获取真实的AI响应。`,
-        timestamp: new Date()
+// 使用SSE进行AI聊天
+const chatWithAI = async (question: string) => {
+  const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
+  if (!currentSession || !userStore.user) return
+
+  try {
+    // 创建SSE连接
+    const eventSource = agentApi.chat({
+      userName: userStore.user.username,
+      agentId: currentSession.agentId || 1, // 默认Agent ID
+      inputMessage: question
+    })
+
+    let aiMessage: ChatMessage = {
+      type: 'ai',
+      content: '',
+      timestamp: new Date()
+    }
+
+    // 添加空的AI消息，准备接收流式数据
+    currentSession.messages.push(aiMessage)
+    currentSession.lastMessage = new Date()
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.content) {
+          // 更新AI消息内容
+          aiMessage.content += data.content
+          nextTick(() => {
+            scrollToBottom()
+          })
+        }
+      } catch (error) {
+        console.error('解析SSE数据失败:', error)
       }
-      
-      // 添加AI回复到当前会话
-      const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
-      if (currentSession) {
-        currentSession.messages.push(aiMessage)
-        currentSession.lastMessage = new Date()
+    }
+
+    eventSource.onerror = (error) => {
+      console.error('SSE连接错误:', error)
+      eventSource.close()
+      isLoading.value = false
+
+      // 如果没有收到任何内容，显示错误消息
+      if (!aiMessage.content) {
+        aiMessage.content = '抱歉，AI服务暂时不可用，请稍后重试。'
       }
-      
-      nextTick(() => {
-        scrollToBottom()
-      })
-      resolve()
-    }, 1000 + Math.random() * 2000) // 1-3秒随机延迟
-  })
+    }
+
+    eventSource.addEventListener('close', () => {
+      eventSource.close()
+      isLoading.value = false
+    })
+
+  } catch (error: any) {
+    console.error('聊天请求失败:', error)
+    ElMessage.error('发送消息失败，请重试')
+
+    // 添加错误消息
+    const errorMessage: ChatMessage = {
+      type: 'ai',
+      content: '抱歉，发送消息时出现错误，请稍后重试。',
+      timestamp: new Date()
+    }
+
+    const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
+    if (currentSession) {
+      currentSession.messages.push(errorMessage)
+      currentSession.lastMessage = new Date()
+    }
+  }
 }
 
 // 处理Shift+Enter换行
@@ -249,7 +289,7 @@ const formatSessionTime = (date: Date) => {
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  
+
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   if (hours < 24) return `${hours}小时前`
@@ -259,11 +299,12 @@ const formatSessionTime = (date: Date) => {
 
 // 创建新会话
 const createNewSession = () => {
-  const newSession: Session = {
+  const newSession: ChatSession = {
     id: `session-${Date.now()}`,
     title: '新对话',
     messages: [],
-    lastMessage: new Date()
+    lastMessage: new Date(),
+    agentId: 1 // 默认Agent ID
   }
   sessions.value.unshift(newSession)
   currentSessionId.value = newSession.id
@@ -546,16 +587,16 @@ onMounted(() => {
    .sidebar {
      width: 240px;
    }
-   
+
    .chat-main {
      padding: 30px 40px;
      max-width: calc(100% - 240px);
    }
-   
+
    .message-content {
      max-width: 70%;
    }
-   
+
    .input-area {
      max-width: 800px;
      padding: 20px 30px;
@@ -566,36 +607,36 @@ onMounted(() => {
    .chat-container {
      flex-direction: column;
    }
-   
+
    .sidebar {
      display: none;
    }
-   
+
    .chat-main {
      padding: 20px;
      max-width: 100%;
    }
-   
+
    .messages-container {
      padding: 20px 0;
    }
-   
+
    .message-content {
      max-width: 75%;
    }
-   
+
    .message-bubble {
      padding: 12px 16px;
      font-size: 14px;
    }
-   
+
    .input-area {
      padding: 16px;
      border-radius: 12px;
      max-width: none;
      margin: 20px 0 0 0;
    }
-   
+
    .send-button {
      height: 36px;
      width: 36px;
@@ -607,11 +648,11 @@ onMounted(() => {
     padding: 16px;
     max-width: 100%;
   }
-  
+
   .message-content {
     max-width: 85%;
   }
-  
+
   .input-container {
     gap: 12px;
   }

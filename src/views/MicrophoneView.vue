@@ -14,12 +14,12 @@
             <VideoPlay v-else />
           </el-icon>
         </div>
-        
+
         <div class="status-text">
           <h3 v-if="!isReady">准备录音</h3>
           <h3 v-else-if="isRecording">正在录音...</h3>
           <h3 v-else>录音就绪</h3>
-          
+
           <p v-if="isRecording" class="recording-time">
             录音时长: {{ formatTime(recordingTime) }}
           </p>
@@ -46,7 +46,7 @@
           <el-icon><Microphone /></el-icon>
           初始化麦克风
         </el-button>
-        
+
         <template v-else>
           <el-button
             v-if="!isRecording"
@@ -58,7 +58,7 @@
             <el-icon><VideoPlay /></el-icon>
             开始录音
           </el-button>
-          
+
           <el-button
             v-else
             type="warning"
@@ -68,7 +68,7 @@
             <el-icon><VideoPause /></el-icon>
             停止录音
           </el-button>
-          
+
           <el-button
             type="info"
             size="large"
@@ -93,17 +93,17 @@
               {{ recording.timestamp }}
             </div>
           </div>
-          
+
           <div class="recording-controls-item">
             <el-button
               size="small"
-              @click="playRecording(recording)"
+              @click="playRecording(recording, index)"
               :disabled="currentPlaying === index"
             >
               <el-icon><VideoPlay /></el-icon>
               {{ currentPlaying === index ? '播放中' : '播放' }}
             </el-button>
-            
+
             <el-button
               v-if="currentPlaying === index"
               size="small"
@@ -112,7 +112,7 @@
               <el-icon><VideoPause /></el-icon>
               停止
             </el-button>
-            
+
             <el-button
               size="small"
               type="primary"
@@ -121,7 +121,7 @@
               <el-icon><Download /></el-icon>
               下载
             </el-button>
-            
+
             <el-button
               size="small"
               type="danger"
@@ -145,7 +145,7 @@
             <el-option label="低质量 (22kHz)" value="low" />
           </el-select>
         </div>
-        
+
         <div class="settings-row">
           <label>音量监控:</label>
           <div class="volume-meter">
@@ -216,19 +216,19 @@ const initMicrophone = async () => {
         noiseSuppression: true
       }
     }
-    
+
     mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-    
+
     // 创建音频上下文
     audioContext = new AudioContext()
     const source = audioContext.createMediaStreamSource(mediaStream)
     analyser = audioContext.createAnalyser()
     analyser.fftSize = 256
     source.connect(analyser)
-    
+
     isReady.value = true
     startVolumeMonitoring()
-    
+
     ElMessage.success('麦克风初始化成功')
   } catch (error) {
     console.error('麦克风初始化失败:', error)
@@ -241,46 +241,46 @@ const initMicrophone = async () => {
 // 开始录音
 const startRecording = () => {
   if (!mediaStream) return
-  
+
   recordedChunks = []
   const options = {
     mimeType: 'audio/webm;codecs=opus',
     audioBitsPerSecond: audioSettings[audioQuality.value as keyof typeof audioSettings].bitRate
   }
-  
+
   mediaRecorder = new MediaRecorder(mediaStream, options)
-  
+
   mediaRecorder.ondataavailable = (event) => {
     if (event.data.size > 0) {
       recordedChunks.push(event.data)
     }
   }
-  
+
   mediaRecorder.onstop = () => {
     const blob = new Blob(recordedChunks, { type: 'audio/webm' })
     const url = URL.createObjectURL(blob)
     const duration = formatTime(recordingTime.value)
     const timestamp = new Date().toLocaleString()
-    
+
     recordings.value.push({
       blob,
       url,
       duration,
       timestamp
     })
-    
+
     ElMessage.success('录音保存成功')
   }
-  
+
   mediaRecorder.start()
   isRecording.value = true
   recordingTime.value = 0
-  
+
   // 开始计时
   recordingTimer = setInterval(() => {
     recordingTime.value++
   }, 1000)
-  
+
   ElMessage.success('开始录音')
 }
 
@@ -289,7 +289,7 @@ const stopRecording = () => {
   if (mediaRecorder && isRecording.value) {
     mediaRecorder.stop()
     isRecording.value = false
-    
+
     if (recordingTimer) {
       clearInterval(recordingTimer)
       recordingTimer = null
@@ -303,21 +303,21 @@ const resetMicrophone = () => {
     mediaStream.getTracks().forEach(track => track.stop())
     mediaStream = null
   }
-  
+
   if (audioContext) {
     audioContext.close()
     audioContext = null
   }
-  
+
   if (animationFrame) {
     cancelAnimationFrame(animationFrame)
     animationFrame = null
   }
-  
+
   isReady.value = false
   isRecording.value = false
   volumeLevel.value = 0
-  
+
   ElMessage.info({
     message: '麦克风已重置',
     duration: 1500
@@ -330,15 +330,15 @@ const playRecording = (recording: Recording, index: number) => {
     currentAudio.pause()
     currentAudio = null
   }
-  
+
   currentAudio = new Audio(recording.url)
   currentPlaying.value = index
-  
+
   currentAudio.onended = () => {
     currentPlaying.value = -1
     currentAudio = null
   }
-  
+
   currentAudio.play()
 }
 
@@ -357,7 +357,7 @@ const downloadRecording = (recording: Recording, index: number) => {
   link.download = `recording_${index + 1}_${new Date().getTime()}.webm`
   link.href = recording.url
   link.click()
-  
+
   ElMessage.success('录音下载成功')
 }
 
@@ -367,17 +367,17 @@ const deleteRecording = async (index: number) => {
     await ElMessageBox.confirm('确定要删除这个录音吗？', '确认删除', {
       type: 'warning'
     })
-    
+
     const recording = recordings.value[index]
     URL.revokeObjectURL(recording.url)
     recordings.value.splice(index, 1)
-    
+
     if (currentPlaying.value === index) {
       stopPlaying()
     } else if (currentPlaying.value > index) {
       currentPlaying.value--
     }
-    
+
     ElMessage.success('录音已删除')
   } catch {
     // 用户取消删除
@@ -394,46 +394,46 @@ const updateAudioSettings = () => {
 // 音量监控
 const startVolumeMonitoring = () => {
   if (!analyser || !canvasRef.value) return
-  
+
   const canvas = canvasRef.value
   const ctx = canvas.getContext('2d')
   if (!ctx) return
-  
+
   const bufferLength = analyser.frequencyBinCount
   const dataArray = new Uint8Array(bufferLength)
-  
+
   const draw = () => {
     if (!analyser || !ctx) return
-    
+
     analyser.getByteFrequencyData(dataArray)
-    
+
     // 计算音量级别
     const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
     volumeLevel.value = Math.min(100, (average / 255) * 100)
-    
+
     // 绘制波形
     ctx.fillStyle = '#f5f7fa'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
+
     const barWidth = canvas.width / bufferLength * 2.5
     let x = 0
-    
+
     for (let i = 0; i < bufferLength; i++) {
       const barHeight = (dataArray[i] / 255) * canvas.height
-      
+
       const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height)
       gradient.addColorStop(0, '#667eea')
       gradient.addColorStop(1, '#764ba2')
-      
+
       ctx.fillStyle = gradient
       ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
-      
+
       x += barWidth + 1
     }
-    
+
     animationFrame = requestAnimationFrame(draw)
   }
-  
+
   draw()
 }
 
@@ -448,12 +448,12 @@ const formatTime = (seconds: number): string => {
 onUnmounted(() => {
   resetMicrophone()
   stopPlaying()
-  
+
   // 清理所有录音URL
   recordings.value.forEach(recording => {
     URL.revokeObjectURL(recording.url)
   })
-  
+
   if (recordingTimer) {
     clearInterval(recordingTimer)
   }
@@ -655,31 +655,31 @@ onUnmounted(() => {
   .microphone-container {
     padding: 10px;
   }
-  
+
   .microphone-content {
     padding: 20px;
   }
-  
+
   .recording-controls {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .recording-controls .el-button {
     width: 200px;
   }
-  
+
   .recording-item {
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
   }
-  
+
   .recording-controls-item {
     width: 100%;
     justify-content: center;
   }
-  
+
   .audio-visualizer canvas {
     width: 100%;
     max-width: 400px;
