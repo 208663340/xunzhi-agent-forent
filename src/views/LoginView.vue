@@ -11,7 +11,6 @@
         :model="loginForm"
         :rules="loginRules"
         class="login-form"
-        @submit.prevent="handleLogin"
       >
         <el-form-item prop="username">
           <el-input
@@ -40,6 +39,7 @@
             class="login-btn"
             :loading="loading"
             @click="handleLogin"
+            native-type="button"
           >
             登录
           </el-button>
@@ -100,29 +100,35 @@ const handleLogin = async () => {
       loading.value = true
 
       try {
-        // 调用登录API
+        console.log('开始登录请求:', loginForm)
+
+        // 调用真实登录API
         const response = await userApi.login({
           username: loginForm.username,
           password: loginForm.password
         })
 
-        const { token } = response.data.data
+        console.log('登录响应:', response.data)
 
-        // 保存token
-        localStorage.setItem('token', token)
+        if (response.data.success) {
+          // 保存token
+          localStorage.setItem('token', response.data.data.token)
 
-        // 构造用户数据
-        const userData = {
-          id: Date.now().toString(), // 临时ID，实际应该从后端获取
-          username: loginForm.username,
-          avatar: '' // 可以设置默认头像
+          const userData = {
+            id: '1', // 这里应该从后端返回
+            username: loginForm.username,
+            avatar: '',
+          }
+
+          userStore.login(userData)
+          ElMessage.success('登录成功')
+          router.push('/')
+        } else {
+          ElMessage.error(response.data.message || '登录失败')
         }
-
-        userStore.login(userData)
-        ElMessage.success('登录成功')
-        router.push('/')
-      } catch (error: any) {
-        ElMessage.error(error.message || '登录失败，请检查用户名和密码')
+      } catch (error) {
+        console.error('登录错误:', error)
+        ElMessage.error('登录失败，请检查网络连接或后端服务')
       } finally {
         loading.value = false
       }

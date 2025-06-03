@@ -66,6 +66,26 @@
           </div>
         </div>
 
+        <!-- SSE流式消息 -->
+        <div v-if="isStreaming && streamingMessage" class="message-item ai-message">
+          <div class="message-avatar">
+            <el-avatar size="small" class="ai-avatar">
+              <el-icon><Robot /></el-icon>
+            </el-avatar>
+          </div>
+
+          <div class="message-content">
+            <div class="message-bubble">
+              <div class="message-text">{{ streamingMessage.content }}</div>
+              <div class="typing-indicator" v-if="isStreaming">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 加载中提示 -->
         <div v-if="isLoading" class="message-item ai-message">
           <div class="message-avatar">
@@ -97,14 +117,15 @@
             class="message-input"
             @keydown.enter.exact.prevent="sendMessage"
             @keydown.enter.shift.exact="handleShiftEnter"
+            :disabled="isLoading || isStreaming"
           />
           <el-button
             type="primary"
-            :disabled="!inputMessage.trim() || isLoading"
+            :disabled="!inputMessage.trim() || isLoading || isStreaming"
             class="send-button"
             @click="sendMessage"
           >
-            <el-icon><Promotion /></el-icon>
+            {{ isStreaming ? '发送中...' : '发送' }}
           </el-button>
         </div>
         <div class="input-tips">
@@ -116,13 +137,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onMounted, computed } from 'vue'
+import { ref, reactive, nextTick, onMounted, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import { Grid } from '@element-plus/icons-vue'
+import { Grid, Service } from '@element-plus/icons-vue'
 import { agentApi } from '@/api'
 import type { ChatMessage, ChatSession } from '@/api/types'
+
+import { createSSEService, type SSEService, type StreamMessage } from '@/services/sseService'
 
 // 使用从API types导入的类型
 // ChatMessage 和 ChatSession 已从 @/api/types 导入
@@ -132,6 +155,9 @@ const userStore = useUserStore()
 const messagesContainer = ref<HTMLElement>()
 const inputMessage = ref('')
 const isLoading = ref(false)
+const isStreaming = ref(false)
+const streamingMessage = ref<StreamMessage | null>(null)
+const sseService = ref<SSEService | null>(null)
 const currentSessionId = ref('session-1')
 const sessions = ref<ChatSession[]>([
   {
@@ -149,7 +175,7 @@ const messages = computed(() => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!inputMessage.value.trim() || isLoading.value) return
+  if (!inputMessage.value.trim() || isLoading.value || isStreaming.value) return
 
   const userMessage: ChatMessage = {
     type: 'user',
@@ -189,76 +215,104 @@ const sendMessage = async () => {
   }
 }
 
-// 使用SSE进行AI聊天
+// 使用SSE流式聊天
 const chatWithAI = async (question: string) => {
   const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
   if (!currentSession || !userStore.user) return
 
   try {
-    // 创建SSE连接
-    const eventSource = agentApi.chat({
-      userName: userStore.user.username,
-      agentId: currentSession.agentId || 1, // 默认Agent ID
-      inputMessage: question
-    })
+    // 重置流式状态
+    streamingMessage.value = null
+    isStreaming.value = true
 
-    let aiMessage: ChatMessage = {
-      type: 'ai',
-      content: '',
-      timestamp: new Date()
+    // 构建SSE请求配置 - 使用POST方法匹配后端接口
+    const sseUrl = '/api/short-link/admin/v1/agent/chat'
+    const requestBody = {
+      userName: userStore.user.username,
+      agentId: currentSession.agentId || 1,
+      inputMessage: question
     }
 
-    // 添加空的AI消息，准备接收流式数据
-    currentSession.messages.push(aiMessage)
-    currentSession.lastMessage = new Date()
+    // 创建SSE服务
+    sseService.value = createSSEService(
+      {
+        url: sseUrl,
+        method: 'POST',
+        body: requestBody,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      },
+      {
+        onMessage: (message: StreamMessage) => {
+          // 更新流式消息
+          streamingMessage.value = message
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.content) {
-          // 更新AI消息内容
-          aiMessage.content += data.content
+          // 滚动到底部
           nextTick(() => {
             scrollToBottom()
           })
+        },
+        onComplete: (finalMessage: string) => {
+          // 流式完成，添加最终消息到会话
+          const aiMessage: ChatMessage = {
+            type: 'ai',
+            content: finalMessage,
+            timestamp: new Date()
+          }
+
+          currentSession.messages.push(aiMessage)
+          currentSession.lastMessage = new Date()
+
+          // 清理流式状态
+          streamingMessage.value = null
+          isStreaming.value = false
+
+          // 滚动到底部
+          nextTick(() => {
+            scrollToBottom()
+          })
+        },
+        onError: (error: Error) => {
+          console.error('SSE流式聊天失败:', error)
+          ElMessage.error('发送消息失败，请重试')
+
+          // 添加错误消息
+          const errorMessage: ChatMessage = {
+            type: 'ai',
+            content: '抱歉，发送消息时出现错误，请稍后重试。',
+            timestamp: new Date()
+          }
+
+          currentSession.messages.push(errorMessage)
+          currentSession.lastMessage = new Date()
+
+          // 清理状态
+          streamingMessage.value = null
+          isStreaming.value = false
+        },
+        onOpen: () => {
+          console.log('SSE连接已建立')
+        },
+        onClose: () => {
+          console.log('SSE连接已关闭')
+          isStreaming.value = false
         }
-      } catch (error) {
-        console.error('解析SSE数据失败:', error)
       }
-    }
+    )
 
-    eventSource.onerror = (error) => {
-      console.error('SSE连接错误:', error)
-      eventSource.close()
-      isLoading.value = false
-
-      // 如果没有收到任何内容，显示错误消息
-      if (!aiMessage.content) {
-        aiMessage.content = '抱歉，AI服务暂时不可用，请稍后重试。'
-      }
-    }
-
-    eventSource.addEventListener('close', () => {
-      eventSource.close()
-      isLoading.value = false
-    })
+    // 开始SSE连接
+    sseService.value.connect()
 
   } catch (error: any) {
-    console.error('聊天请求失败:', error)
+    console.error('启动SSE聊天失败:', error)
     ElMessage.error('发送消息失败，请重试')
 
-    // 添加错误消息
-    const errorMessage: ChatMessage = {
-      type: 'ai',
-      content: '抱歉，发送消息时出现错误，请稍后重试。',
-      timestamp: new Date()
-    }
-
-    const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
-    if (currentSession) {
-      currentSession.messages.push(errorMessage)
-      currentSession.lastMessage = new Date()
-    }
+    // 清理状态
+    streamingMessage.value = null
+    isStreaming.value = false
   }
 }
 
@@ -322,6 +376,14 @@ const goToAgentMarket = () => {
 
 onMounted(() => {
   // 初始化时可以添加欢迎消息
+})
+
+// 组件卸载时清理SSE连接
+onUnmounted(() => {
+  if (sseService.value) {
+    sseService.value.disconnect()
+    sseService.value = null
+  }
 })
 </script>
 

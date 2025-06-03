@@ -20,7 +20,7 @@ import type {
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'http://localhost:8001', // 后端服务地址
+  baseURL: '', // 使用相对路径，通过Vite代理转发到后端
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
@@ -35,6 +35,23 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // 添加用户信息到请求头
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        config.headers.username = user.username
+        config.headers.userId = user.id
+        // realName字段如果存在的话也添加
+        if (user.realName) {
+          config.headers.realName = user.realName
+        }
+      } catch (error) {
+        console.error('解析用户信息失败:', error)
+      }
+    }
+
     return config
   },
   (error) => {
@@ -94,14 +111,8 @@ export const userApi = {
 // Agent聊天相关API
 export const agentApi = {
   // Agent聊天（SSE流式响应）
-  chat: (data: UserMessageReq): EventSource => {
-    const params = new URLSearchParams({
-      userName: data.userName,
-      agentId: data.agentId.toString(),
-      inputMessage: data.inputMessage
-    })
-
-    return new EventSource(`http://localhost:8080/api/short-link/admin/v1/agent/chat?${params}`)
+  chat: (data: UserMessageReq): Promise<AxiosResponse<ApiResponse<any>>> => {
+    return api.post('/api/short-link/admin/v1/agent/chat', data)
   },
 
   // 普通聊天请求（如果需要非SSE方式）

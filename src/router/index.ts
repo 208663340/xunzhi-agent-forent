@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import MainLayout from '../layouts/MainLayout.vue'
 import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
@@ -6,38 +7,41 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      component: MainLayout,
+      children: [
+        {
+          path: '',
+          name: 'home',
+          component: HomeView,
+        },
+        {
+          path: 'about',
+          name: 'about',
+          component: () => import('../views/AboutView.vue'),
+        },
+        {
+          path: 'camera',
+          name: 'camera',
+          component: () => import('../views/CameraView.vue'),
+        },
+        {
+          path: 'microphone',
+          name: 'microphone',
+          component: () => import('../views/MicrophoneView.vue'),
+        },
+        {
+          path: 'chat',
+          name: 'chat',
+          component: () => import('../views/ChatView.vue'),
+        },
+        {
+          path: 'agent-market',
+          name: 'agent-market',
+          component: () => import('../views/AgentMarketView.vue'),
+        },
+      ]
     },
-    {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
-    },
-
-    {
-      path: '/camera',
-      name: 'camera',
-      component: () => import('../views/CameraView.vue'),
-    },
-    {
-      path: '/microphone',
-      name: 'microphone',
-      component: () => import('../views/MicrophoneView.vue'),
-    },
-    {
-      path: '/chat',
-      name: 'chat',
-      component: () => import('../views/ChatView.vue'),
-    },
-    {
-      path: '/agent-market',
-      name: 'agent-market',
-      component: () => import('../views/AgentMarketView.vue'),
-    },
+    // 独立页面（不使用MainLayout）
     {
       path: '/login',
       name: 'login',

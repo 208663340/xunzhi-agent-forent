@@ -1,0 +1,369 @@
+// SSE流式数据服务
+
+// 定义SSE数据结构
+export interface SSEChoice {
+  delta: {
+    role: string
+    content: string
+    reasoning_content: string
+  }
+  index: number
+  finish_reason: string | null
+}
+
+export interface SSEWorkflowStep {
+  seq: number
+  progress: number
+}
+
+export interface SSEData {
+  code: number
+  message: string
+  id: string
+  created: number
+  choices: SSEChoice[]
+  workflow_step: SSEWorkflowStep
+}
+
+export interface StreamMessage {
+  content: string
+  id: string
+  progress: number | null
+  step: number | null
+  timestamp: Date
+  isComplete: boolean
+}
+
+// SSE连接配置
+export interface SSEConfig {
+  url: string
+  method?: 'GET' | 'POST'
+  body?: any
+  headers?: Record<string, string>
+  withCredentials?: boolean
+  retryInterval?: number
+  maxRetries?: number
+}
+
+// 事件回调类型
+export type SSEEventCallback = {
+  onMessage?: (message: StreamMessage) => void
+  onComplete?: (finalMessage: string) => void
+  onError?: (error: Error) => void
+  onOpen?: () => void
+  onClose?: () => void
+}
+
+export class SSEService {
+  private eventSource: EventSource | null = null
+  private config: SSEConfig
+  private callbacks: SSEEventCallback
+  private accumulatedContent = ''
+  private retryCount = 0
+  private isConnected = false
+  private currentMessageId = ''
+  private abortController: AbortController | null = null
+
+  constructor(config: SSEConfig, callbacks: SSEEventCallback = {}) {
+    this.config = {
+      retryInterval: 3000,
+      maxRetries: 3,
+      withCredentials: false,
+      ...config
+    }
+    this.callbacks = callbacks
+  }
+
+  // 开始SSE连接
+  connect(): void {
+    if (this.eventSource) {
+      this.disconnect()
+    }
+
+    try {
+      // 对于POST请求，需要使用fetch API来建立SSE连接
+      if (this.config.method === 'POST') {
+        this.connectWithPost()
+      } else {
+        // 默认GET请求使用EventSource
+        this.reset()
+        this.createConnection()
+      }
+    } catch (error) {
+      console.error('Failed to create EventSource:', error)
+      this.callbacks.onError?.(error as Error)
+    }
+  }
+
+  private async connectWithPost(): Promise<void> {
+    try {
+      // 创建AbortController用于取消请求
+      this.abortController = new AbortController()
+
+      const response = await fetch(this.config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          ...this.config.headers
+        },
+        body: JSON.stringify(this.config.body),
+        credentials: this.config.withCredentials ? 'include' : 'same-origin',
+        signal: this.abortController.signal
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null')
+      }
+
+      this.callbacks.onOpen?.()
+      this.readStream(response.body)
+    } catch (error) {
+      console.error('Failed to connect with POST:', error)
+      this.callbacks.onError?.(error as Error)
+    }
+  }
+
+  private async readStream(body: ReadableStream<Uint8Array>): Promise<void> {
+    const reader = body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          this.callbacks.onClose?.()
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // 保留最后一个不完整的行
+
+        for (const line of lines) {
+          this.processSSELine(line)
+        }
+      }
+    } catch (error) {
+      console.error('Error reading stream:', error)
+      this.callbacks.onError?.(error as Error)
+    } finally {
+      reader.releaseLock()
+    }
+  }
+
+  private processSSELine(line: string): void {
+    if (line.startsWith('data: ')) {
+      const data = line.slice(6) // 移除 'data: ' 前缀
+
+      if (data === '[DONE]') {
+        // 流结束标记
+        this.callbacks.onClose?.()
+        return
+      }
+
+      try {
+         const sseData: SSEData = JSON.parse(data)
+         this.handleSSEData(sseData)
+       } catch (error) {
+         console.error('Failed to parse SSE data:', error)
+       }
+    }
+  }
+
+  // 创建SSE连接
+  private createConnection(): void {
+    try {
+      // 构建URL，如果有headers需要通过查询参数传递
+      let url = this.config.url
+
+      // 创建EventSource
+      this.eventSource = new EventSource(url, {
+        withCredentials: this.config.withCredentials
+      })
+
+      this.setupEventListeners()
+    } catch (error) {
+      console.error('创建SSE连接失败:', error)
+      this.handleError(new Error('无法创建SSE连接'))
+    }
+  }
+
+  // 设置事件监听器
+  private setupEventListeners(): void {
+    if (!this.eventSource) return
+
+    // 连接打开
+    this.eventSource.onopen = () => {
+      console.log('SSE连接已建立')
+      this.isConnected = true
+      this.retryCount = 0
+      this.callbacks.onOpen?.()
+    }
+
+    // 接收消息
+    this.eventSource.onmessage = (event) => {
+      try {
+        this.handleMessage(event.data)
+      } catch (error) {
+        console.error('处理SSE消息失败:', error)
+        this.handleError(error as Error)
+      }
+    }
+
+    // 连接错误
+    this.eventSource.onerror = (error) => {
+      console.error('SSE连接错误:', error)
+      this.isConnected = false
+
+      if (this.retryCount < (this.config.maxRetries || 3)) {
+        this.scheduleRetry()
+      } else {
+        this.handleError(new Error('SSE连接失败，已达到最大重试次数'))
+      }
+    }
+  }
+
+  // 处理接收到的消息
+  private handleMessage(data: string): void {
+    // 解析JSON数据
+    const sseData: SSEData = JSON.parse(data)
+
+    console.log('收到SSE数据:', sseData)
+
+    // 检查响应状态
+    if (sseData.code !== 0) {
+      this.handleError(new Error(sseData.message || '服务器返回错误'))
+      return
+    }
+
+    // 处理选择数据
+    if (sseData.choices && sseData.choices.length > 0) {
+      const choice = sseData.choices[0]
+
+      // 更新消息ID
+      if (sseData.id && sseData.id !== this.currentMessageId) {
+        this.currentMessageId = sseData.id
+      }
+
+      // 累积内容
+      if (choice.delta && choice.delta.content) {
+        this.accumulatedContent += choice.delta.content
+
+        // 创建流式消息对象
+        const streamMessage: StreamMessage = {
+          content: this.accumulatedContent,
+          id: this.currentMessageId,
+          progress: sseData.workflow_step ? sseData.workflow_step.progress : null,
+          step: sseData.workflow_step ? sseData.workflow_step.seq : null,
+          timestamp: new Date(sseData.created * 1000),
+          isComplete: !!choice.finish_reason
+        }
+
+        // 触发消息回调
+        this.callbacks.onMessage?.(streamMessage)
+
+        // 检查是否完成
+        if (choice.finish_reason) {
+          this.handleComplete()
+        }
+      }
+    }
+  }
+
+  // 处理流式完成
+  private handleComplete(): void {
+    console.log('SSE流式传输完成')
+
+    // 触发完成回调
+    this.callbacks.onComplete?.(this.accumulatedContent)
+
+    // 断开连接
+    this.disconnect()
+  }
+
+  // 处理错误
+  private handleError(error: Error): void {
+    console.error('SSE服务错误:', error)
+    this.callbacks.onError?.(error)
+  }
+
+  // 安排重试
+  private scheduleRetry(): void {
+    this.retryCount++
+    console.log(`SSE连接重试 ${this.retryCount}/${this.config.maxRetries}`)
+
+    setTimeout(() => {
+      if (!this.isConnected) {
+        this.createConnection()
+      }
+    }, this.config.retryInterval)
+  }
+
+  // 断开连接
+  disconnect(): void {
+    if (this.eventSource) {
+      this.eventSource.close()
+      this.eventSource = null
+    }
+    // 对于POST请求，需要中断fetch请求
+    if (this.abortController) {
+      this.abortController.abort()
+      this.abortController = null
+    }
+    this.isConnected = false
+    this.retryCount = 0
+    this.callbacks.onClose?.()
+  }
+
+  // 重置状态
+  private reset(): void {
+    this.accumulatedContent = ''
+    this.retryCount = 0
+    this.currentMessageId = ''
+  }
+
+  // 获取连接状态
+  getConnectionState(): {
+    isConnected: boolean
+    retryCount: number
+    currentMessageId: string
+    accumulatedContent: string
+  } {
+    return {
+      isConnected: this.isConnected,
+      retryCount: this.retryCount,
+      currentMessageId: this.currentMessageId,
+      accumulatedContent: this.accumulatedContent
+    }
+  }
+
+  // 更新配置
+  updateConfig(newConfig: Partial<SSEConfig>): void {
+    this.config = { ...this.config, ...newConfig }
+  }
+
+  // 更新回调
+  updateCallbacks(newCallbacks: Partial<SSEEventCallback>): void {
+    this.callbacks = { ...this.callbacks, ...newCallbacks }
+  }
+}
+
+// 创建SSE服务实例的工厂函数
+export function createSSEService(config: SSEConfig, callbacks?: SSEEventCallback): SSEService {
+  return new SSEService(config, callbacks)
+}
+
+// 默认配置
+export const defaultSSEConfig: Partial<SSEConfig> = {
+  retryInterval: 3000,
+  maxRetries: 3,
+  withCredentials: false
+}
