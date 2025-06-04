@@ -97,7 +97,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { userApi } from '@/api'
-import type { UserRegisterReq } from '@/api/types'
+import type { UserRegisterReq } from '@/types/user'
 
 const router = useRouter()
 

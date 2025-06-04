@@ -85,24 +85,24 @@ api.interceptors.response.use(
 export const userApi = {
   // 用户登录
   login: (data: UserLoginReq): Promise<AxiosResponse<ApiResponse<UserLoginResp>>> => {
-    return api.post('/api/short-link/admin/v1/user/login', data)
+    return api.post('/api/xunzhi-agent/admin/v1/user/login', data)
   },
 
   // 用户注册
   register: (data: UserRegisterReq): Promise<AxiosResponse<ApiResponse<void>>> => {
-    return api.post('/api/short-link/admin/v1/user', data)
+    return api.post('/api/xunzhi-agent/admin/v1/user', data)
   },
 
   // 检查登录状态
   checkLogin: (username: string, token: string): Promise<AxiosResponse<ApiResponse<boolean>>> => {
-    return api.get('/api/short-link/admin/v1/user/check-login', {
+    return api.get('/api/xunzhi-agent/admin/v1/user/check-login', {
       params: { username, token }
     })
   },
 
   // 用户退出登录
   logout: (username: string, token: string): Promise<AxiosResponse<ApiResponse<void>>> => {
-    return api.delete('/api/short-link/admin/v1/user/logout', {
+    return api.delete('/api/xunzhi-agent/admin/v1/user/logout', {
       params: { username, token }
     })
   }
@@ -112,12 +112,12 @@ export const userApi = {
 export const agentApi = {
   // Agent聊天（SSE流式响应）
   chat: (data: UserMessageReq): Promise<AxiosResponse<ApiResponse<any>>> => {
-    return api.post('/api/short-link/admin/v1/agent/chat', data)
+    return api.post('/api/xunzhi-agent/admin/v1/agent/chat', data)
   },
 
   // 普通聊天请求（如果需要非SSE方式）
   chatSync: (data: UserMessageReq): Promise<AxiosResponse<ApiResponse<string>>> => {
-    return api.post('/api/short-link/admin/v1/agent/chat-sync', data)
+    return api.post('/api/xunzhi-agent/admin/v1/agent/chat-sync', data)
   }
 }
 
@@ -128,7 +128,7 @@ export const xunfeiApi = {
     const formData = new FormData()
     formData.append('audioFile', audioFile)
 
-    return api.post('/api/short-link/admin/v1/xunfei/audio-to-text', formData, {
+    return api.post('/api/xunzhi-agent/admin/v1/xunfei/audio-to-text', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -140,7 +140,7 @@ export const xunfeiApi = {
     const formData = new FormData()
     formData.append('audioFile', audioFile)
 
-    return api.post('/api/short-link/admin/v1/xunfei/realtime-audio-to-text', formData, {
+    return api.post('/api/xunzhi-agent/admin/v1/xunfei/realtime-audio-to-text', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -153,7 +153,7 @@ export const xunfeiApi = {
   //   formData.append('image1', image1)
   //   formData.append('image2', image2)
 
-  //   return api.post('/api/short-link/admin/v1/xunfei/compare-faces', formData, {
+  //   return api.post('/api/xunzhi-agent/admin/v1/xunfei/compare-faces', formData, {
   //     headers: {
   //       'Content-Type': 'multipart/form-data'
   //     }
@@ -165,7 +165,7 @@ export const xunfeiApi = {
   //   const formData = new FormData()
   //   formData.append('image', image)
 
-  //   return api.post('/api/short-link/admin/v1/xunfei/detect-all-attributes', formData, {
+  //   return api.post('/api/xunzhi-agent-agent/admin/v1/xunfei/detect-all-attributes', formData, {
   //     headers: {
   //       'Content-Type': 'multipart/form-data'
   //     }
@@ -177,7 +177,7 @@ export const xunfeiApi = {
   //   const formData = new FormData()
   //   formData.append('image', image)
 
-  //   return api.post(`/api/short-link/admin/v1/xunfei/detect-single-attribute/${attribute}`, formData, {
+  //   return api.post(`/api/xunzhi-agent/admin/v1/xunfei/detect-single-attribute/${attribute}`, formData, {
   //     headers: {
   //       'Content-Type': 'multipart/form-data'
   //     }

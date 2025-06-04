@@ -169,12 +169,7 @@ import {
   Delete
 } from '@element-plus/icons-vue'
 
-interface Recording {
-  blob: Blob
-  url: string
-  duration: string
-  timestamp: string
-}
+import type { Recording } from '@/types/media'
 
 // 响应式数据
 const canvasRef = ref<HTMLCanvasElement>()

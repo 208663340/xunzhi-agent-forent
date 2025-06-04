@@ -1,12 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
-export interface User {
-  id: string
-  username: string
-  avatar?: string
-  phone?: string
-}
+import type { User } from '@/types/user'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
@@ -30,7 +24,7 @@ export const useUserStore = defineStore('user', () => {
   const initUser = () => {
     const savedUser = localStorage.getItem('user')
     const savedLoginStatus = localStorage.getItem('isLoggedIn')
-    
+
     if (savedUser && savedLoginStatus === 'true') {
       user.value = JSON.parse(savedUser)
       isLoggedIn.value = true

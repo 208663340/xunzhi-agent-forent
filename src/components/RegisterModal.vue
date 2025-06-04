@@ -115,6 +115,8 @@ const registerForm = reactive({
   password: '',
   confirmPassword: '',
   phone: '',
+  realName: '',
+  mail: ''
 })
 
 // 密码确认验证
@@ -160,7 +162,9 @@ const handleRegister = async () => {
         const response = await userApi.register({
           username: registerForm.username,
           password: registerForm.password,
-          phone: registerForm.phone
+          phone: registerForm.phone,
+          realName: registerForm.realName,
+          mail: registerForm.mail
         })
 
         console.log('注册响应:', response)

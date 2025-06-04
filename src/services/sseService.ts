@@ -1,57 +1,21 @@
-// SSE流式数据服务
+// SSE服务类
+import type {
+  SSEChoice,
+  SSEWorkflowStep,
+  SSEData,
+  StreamMessage,
+  SSEConfig,
+  SSEEventCallback
+} from '@/types/sse'
 
-// 定义SSE数据结构
-export interface SSEChoice {
-  delta: {
-    role: string
-    content: string
-    reasoning_content: string
-  }
-  index: number
-  finish_reason: string | null
-}
-
-export interface SSEWorkflowStep {
-  seq: number
-  progress: number
-}
-
-export interface SSEData {
-  code: number
-  message: string
-  id: string
-  created: number
-  choices: SSEChoice[]
-  workflow_step: SSEWorkflowStep
-}
-
-export interface StreamMessage {
-  content: string
-  id: string
-  progress: number | null
-  step: number | null
-  timestamp: Date
-  isComplete: boolean
-}
-
-// SSE连接配置
-export interface SSEConfig {
-  url: string
-  method?: 'GET' | 'POST'
-  body?: any
-  headers?: Record<string, string>
-  withCredentials?: boolean
-  retryInterval?: number
-  maxRetries?: number
-}
-
-// 事件回调类型
-export type SSEEventCallback = {
-  onMessage?: (message: StreamMessage) => void
-  onComplete?: (finalMessage: string) => void
-  onError?: (error: Error) => void
-  onOpen?: () => void
-  onClose?: () => void
+// 重新导出类型供外部使用
+export type {
+  SSEChoice,
+  SSEWorkflowStep,
+  SSEData,
+  StreamMessage,
+  SSEConfig,
+  SSEEventCallback
 }
 
 export class SSEService {
@@ -159,9 +123,46 @@ export class SSEService {
     }
   }
 
+  private currentEventType: string | null = null
+
   private processSSELine(line: string): void {
-    if (line.startsWith('data: ')) {
-      const data = line.slice(6) // 移除 'data: ' 前缀
+    // 跳过空行
+    if (!line.trim()) {
+      return
+    }
+
+    // 处理事件类型行
+    if (line.startsWith('event:')) {
+      const eventType = line.slice(6).trim()
+      if (eventType === 'end') {
+        this.callbacks.onClose?.()
+      } else if (eventType === 'sessionId') {
+        // 设置当前事件类型，等待下一行的data
+        this.currentEventType = 'sessionId'
+      }
+      return
+    }
+
+    // 处理数据行
+    if (line.startsWith('data:')) {
+      let data = line.slice(5).trim() // 移除 'data:' 前缀
+
+      // 处理重复的data:前缀
+      while (data.startsWith('data:')) {
+        data = data.slice(5).trim()
+      }
+
+      // 跳过空数据
+      if (!data) {
+        return
+      }
+
+      // 处理sessionId事件的数据
+      if (this.currentEventType === 'sessionId') {
+        this.callbacks.onSessionId?.(data)
+        this.currentEventType = null // 重置事件类型
+        return
+      }
 
       if (data === '[DONE]') {
         // 流结束标记
@@ -173,7 +174,7 @@ export class SSEService {
          const sseData: SSEData = JSON.parse(data)
          this.handleSSEData(sseData)
        } catch (error) {
-         console.error('Failed to parse SSE data:', error)
+         console.error('Failed to parse SSE data:', error, 'Raw data:', data)
        }
     }
   }
@@ -211,7 +212,8 @@ export class SSEService {
     // 接收消息
     this.eventSource.onmessage = (event) => {
       try {
-        this.handleMessage(event.data)
+        const sseData: SSEData = JSON.parse(event.data)
+        this.handleSSEData(sseData)
       } catch (error) {
         console.error('处理SSE消息失败:', error)
         this.handleError(error as Error)
@@ -231,10 +233,8 @@ export class SSEService {
     }
   }
 
-  // 处理接收到的消息
-  private handleMessage(data: string): void {
-    // 解析JSON数据
-    const sseData: SSEData = JSON.parse(data)
+  // 处理SSE数据
+  private handleSSEData(sseData: SSEData): void {
 
     console.log('收到SSE数据:', sseData)
 
@@ -260,7 +260,7 @@ export class SSEService {
         // 创建流式消息对象
         const streamMessage: StreamMessage = {
           content: this.accumulatedContent,
-          id: this.currentMessageId,
+          id: this.currentMessageId || '',
           progress: sseData.workflow_step ? sseData.workflow_step.progress : null,
           step: sseData.workflow_step ? sseData.workflow_step.seq : null,
           timestamp: new Date(sseData.created * 1000),

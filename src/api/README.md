@@ -277,13 +277,18 @@ try {
 所有的接口参数和响应类型都定义在 `src/api/types.ts` 中，使用时可以导入：
 
 ```typescript
-import type {
+import {
+  ApiResponse,
+  User,
   UserLoginReq,
   UserLoginResp,
-  UserRegisterReq,
+  UserRegisterReq
+} from '@/types/user'
+import {
   ChatMessage,
   ChatSession
-} from '@/api/types'
+} from '@/types/chat'
+import type { ApiResponse } from '@/types/api'
 ```
 
 ## 注意事项

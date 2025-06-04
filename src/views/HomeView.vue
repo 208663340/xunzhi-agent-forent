@@ -54,7 +54,7 @@ const stats = ref([
 // 智能体数据
 const agents = ref([
   {
-    id: 1,
+    id: 6,
     name: '前端面试官',
     description: 'HTML/CSS/JavaScript/Vue/React技术栈面试评测',
     icon: '🌐',

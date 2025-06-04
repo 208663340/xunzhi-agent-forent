@@ -45,7 +45,7 @@
 
         <div
           v-for="(message, index) in messages"
-          :key="index"
+          :key="message.id"
           class="message-item"
           :class="{ 'user-message': message.type === 'user', 'ai-message': message.type === 'ai' }"
         >
@@ -60,28 +60,14 @@
 
           <div class="message-content">
             <div class="message-bubble">
-              <div class="message-text">{{ message.content }}</div>
-              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SSE流式消息 -->
-        <div v-if="isStreaming && streamingMessage" class="message-item ai-message">
-          <div class="message-avatar">
-            <el-avatar size="small" class="ai-avatar">
-              <el-icon><Robot /></el-icon>
-            </el-avatar>
-          </div>
-
-          <div class="message-content">
-            <div class="message-bubble">
-              <div class="message-text">{{ streamingMessage.content }}</div>
-              <div class="typing-indicator" v-if="isStreaming">
+              <MessageRenderer :content="message.content" :type="message.type" />
+              <!-- 流式传输指示器 -->
+              <div class="typing-indicator" v-if="message.isStreaming">
                 <span></span>
                 <span></span>
                 <span></span>
               </div>
+              <div class="message-time" v-if="message.isComplete">{{ formatTime(message.timestamp) }}</div>
             </div>
           </div>
         </div>
@@ -141,14 +127,11 @@ import { ref, reactive, nextTick, onMounted, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import { Grid, Service } from '@element-plus/icons-vue'
+import { Grid, Plus, ChatDotRound, User, Service } from '@element-plus/icons-vue'
 import { agentApi } from '@/api'
-import type { ChatMessage, ChatSession } from '@/api/types'
-
+import type { ChatMessage, ChatSession } from '@/types/chat'
 import { createSSEService, type SSEService, type StreamMessage } from '@/services/sseService'
-
-// 使用从API types导入的类型
-// ChatMessage 和 ChatSession 已从 @/api/types 导入
+import MessageRenderer from '@/components/MessageRenderer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -156,7 +139,6 @@ const messagesContainer = ref<HTMLElement>()
 const inputMessage = ref('')
 const isLoading = ref(false)
 const isStreaming = ref(false)
-const streamingMessage = ref<StreamMessage | null>(null)
 const sseService = ref<SSEService | null>(null)
 const currentSessionId = ref('session-1')
 const sessions = ref<ChatSession[]>([
@@ -164,7 +146,9 @@ const sessions = ref<ChatSession[]>([
     id: 'session-1',
     title: '新对话',
     messages: [],
-    lastMessage: new Date()
+    lastMessage: new Date(),
+    messageSeq: 0,
+    backendSessionId: undefined
   }
 ])
 // 当前会话的消息
@@ -173,26 +157,38 @@ const messages = computed(() => {
   return currentSession ? currentSession.messages : []
 })
 
+// 生成唯一ID的工具函数
+const generateMessageId = () => {
+  return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
 // 发送消息
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || isLoading.value || isStreaming.value) return
 
-  const userMessage: ChatMessage = {
-    type: 'user',
-    content: inputMessage.value.trim(),
-    timestamp: new Date()
-  }
-
   // 添加消息到当前会话
   const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
-  if (currentSession) {
-    currentSession.messages.push(userMessage)
-    currentSession.lastMessage = new Date()
+  if (!currentSession) return
 
-    // 如果是第一条消息，更新会话标题
-    if (currentSession.messages.length === 1) {
-      currentSession.title = userMessage.content.slice(0, 20) + (userMessage.content.length > 20 ? '...' : '')
-    }
+  // 自增消息序列号
+  currentSession.messageSeq++
+
+  const userMessage: ChatMessage = {
+    id: generateMessageId(),
+    type: 'user',
+    content: inputMessage.value.trim(),
+    timestamp: new Date(),
+    messageSeq: currentSession.messageSeq,
+    isComplete: true
+  }
+
+  // 添加消息到会话
+  currentSession.messages.push(userMessage)
+  currentSession.lastMessage = new Date()
+
+  // 如果是第一条消息，更新会话标题
+  if (currentSession.messages.length === 1) {
+    currentSession.title = userMessage.content.slice(0, 20) + (userMessage.content.length > 20 ? '...' : '')
   }
 
   const question = inputMessage.value.trim()
@@ -220,17 +216,37 @@ const chatWithAI = async (question: string) => {
   const currentSession = sessions.value.find(s => s.id === currentSessionId.value)
   if (!currentSession || !userStore.user) return
 
+  // 自增AI消息序列号
+  currentSession.messageSeq++
+
+  // 创建一个新的AI消息对象，用于流式更新
+  const aiMessageId = generateMessageId()
+  const aiMessage: ChatMessage = {
+    id: aiMessageId,
+    type: 'ai',
+    content: '',
+    timestamp: new Date(),
+    messageSeq: currentSession.messageSeq,
+    isStreaming: true,
+    isComplete: false
+  }
+
+  // 立即添加到会话中，但标记为流式传输中
+  currentSession.messages.push(aiMessage)
+  currentSession.lastMessage = new Date()
+
   try {
-    // 重置流式状态
-    streamingMessage.value = null
+    // 设置流式状态
     isStreaming.value = true
 
     // 构建SSE请求配置 - 使用POST方法匹配后端接口
-    const sseUrl = '/api/short-link/admin/v1/agent/chat'
+    const sseUrl = '/api/xunzhi-agent/admin/v1/agent/chat'
     const requestBody = {
       userName: userStore.user.username,
       agentId: currentSession.agentId || 1,
-      inputMessage: question
+      inputMessage: question,
+      messageSeq: currentSession.messageSeq,
+      sessionId: currentSession.backendSessionId // 传入后端会话ID
     }
 
     // 创建SSE服务
@@ -247,8 +263,11 @@ const chatWithAI = async (question: string) => {
       },
       {
         onMessage: (message: StreamMessage) => {
-          // 更新流式消息
-          streamingMessage.value = message
+          // 直接更新会话中的消息内容
+          const currentAiMessage = currentSession.messages.find(msg => msg.id === aiMessageId)
+          if (currentAiMessage) {
+            currentAiMessage.content = message.content
+          }
 
           // 滚动到底部
           nextTick(() => {
@@ -256,18 +275,15 @@ const chatWithAI = async (question: string) => {
           })
         },
         onComplete: (finalMessage: string) => {
-          // 流式完成，添加最终消息到会话
-          const aiMessage: ChatMessage = {
-            type: 'ai',
-            content: finalMessage,
-            timestamp: new Date()
+          // 流式完成，更新消息状态
+          const currentAiMessage = currentSession.messages.find(msg => msg.id === aiMessageId)
+          if (currentAiMessage) {
+            currentAiMessage.content = finalMessage
+            currentAiMessage.isStreaming = false
+            currentAiMessage.isComplete = true
           }
 
-          currentSession.messages.push(aiMessage)
           currentSession.lastMessage = new Date()
-
-          // 清理流式状态
-          streamingMessage.value = null
           isStreaming.value = false
 
           // 滚动到底部
@@ -275,22 +291,26 @@ const chatWithAI = async (question: string) => {
             scrollToBottom()
           })
         },
+        onSessionId: (sessionId) => {
+          // 接收后端返回的会话ID
+          if (!currentSession.backendSessionId) {
+            currentSession.backendSessionId = sessionId
+            console.log('收到后端会话ID:', sessionId)
+          }
+        },
         onError: (error: Error) => {
           console.error('SSE流式聊天失败:', error)
           ElMessage.error('发送消息失败，请重试')
 
-          // 添加错误消息
-          const errorMessage: ChatMessage = {
-            type: 'ai',
-            content: '抱歉，发送消息时出现错误，请稍后重试。',
-            timestamp: new Date()
+          // 更新为错误消息
+          const currentAiMessage = currentSession.messages.find(msg => msg.id === aiMessageId)
+          if (currentAiMessage) {
+            currentAiMessage.content = '抱歉，发送消息时出现错误，请稍后重试。'
+            currentAiMessage.isStreaming = false
+            currentAiMessage.isComplete = true
           }
 
-          currentSession.messages.push(errorMessage)
           currentSession.lastMessage = new Date()
-
-          // 清理状态
-          streamingMessage.value = null
           isStreaming.value = false
         },
         onOpen: () => {
@@ -299,6 +319,13 @@ const chatWithAI = async (question: string) => {
         onClose: () => {
           console.log('SSE连接已关闭')
           isStreaming.value = false
+
+          // 确保消息状态被正确更新
+          const currentAiMessage = currentSession.messages.find(msg => msg.id === aiMessageId)
+          if (currentAiMessage && currentAiMessage.isStreaming) {
+            currentAiMessage.isStreaming = false
+            currentAiMessage.isComplete = true
+          }
         }
       }
     )
@@ -310,8 +337,14 @@ const chatWithAI = async (question: string) => {
     console.error('启动SSE聊天失败:', error)
     ElMessage.error('发送消息失败，请重试')
 
-    // 清理状态
-    streamingMessage.value = null
+    // 更新为错误消息
+    const currentAiMessage = currentSession.messages.find(msg => msg.id === aiMessageId)
+    if (currentAiMessage) {
+      currentAiMessage.content = '抱歉，连接失败，请稍后重试。'
+      currentAiMessage.isStreaming = false
+      currentAiMessage.isComplete = true
+    }
+
     isStreaming.value = false
   }
 }
@@ -358,7 +391,9 @@ const createNewSession = () => {
     title: '新对话',
     messages: [],
     lastMessage: new Date(),
-    agentId: 1 // 默认Agent ID
+    agentId: 1, // 默认Agent ID
+    messageSeq: 0, // 初始化消息序列号
+    backendSessionId: undefined // 初始化后端会话ID
   }
   sessions.value.unshift(newSession)
   currentSessionId.value = newSession.id
@@ -563,6 +598,12 @@ onUnmounted(() => {
 .message-time {
   font-size: 12px;
   opacity: 0.7;
+}
+
+/* 确保MessageRenderer组件在消息气泡中正确显示 */
+.message-bubble :deep(.message-renderer) {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .user-message .message-time {

@@ -1,7 +1,7 @@
 <template>
   <div class="sse-stream-parser">
     <!-- 流式消息展示 -->
-    <div class="stream-message" v-if="streamingMessage">
+    <div class="stream-message" v-if="streamingMessage && !completedMessage">
       <div class="message-content">
         <div class="message-text">{{ streamingMessage.content }}</div>
         <div class="stream-info" v-if="showDebugInfo">
@@ -31,44 +31,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-
-// 定义SSE数据结构
-interface SSEChoice {
-  delta: {
-    role: string
-    content: string
-    reasoning_content: string
-  }
-  index: number
-  finish_reason: string | null
-}
-
-interface SSEWorkflowStep {
-  seq: number
-  progress: number
-}
-
-interface SSEData {
-  code: number
-  message: string
-  id: string
-  created: number
-  choices: SSEChoice[]
-  workflow_step: SSEWorkflowStep
-}
-
-interface StreamMessage {
-  content: string
-  id: string
-  progress: number | null
-  step: number | null
-  timestamp: Date
-}
-
-interface CompletedMessage {
-  content: string
-  timestamp: Date
-}
+import type {
+  SSEChoice,
+  SSEWorkflowStep,
+  SSEData,
+  StreamMessage,
+  CompletedMessage
+} from '@/types/sse'
 
 const props = defineProps<{
   url: string // SSE连接URL
@@ -128,7 +97,8 @@ const startStream = () => {
             id: data.id,
             progress: data.workflow_step ? data.workflow_step.progress : null,
             step: data.workflow_step ? data.workflow_step.seq : null,
-            timestamp: new Date(data.created * 1000)
+            timestamp: new Date(data.created * 1000),
+            isComplete: !!choice.finish_reason
           }
         }
 
@@ -168,10 +138,14 @@ const handleStreamComplete = () => {
 
     // 发出完成事件
     emit('message-complete', streamingMessage.value.content)
+
+    // 延迟清理流式消息，确保完成消息能够显示
+    setTimeout(() => {
+      streamingMessage.value = null
+    }, 100)
   }
 
-  // 清理状态
-  streamingMessage.value = null
+  // 更新状态
   isStreaming.value = false
 
   // 关闭连接
