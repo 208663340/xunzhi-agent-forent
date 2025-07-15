@@ -7,13 +7,23 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from './stores/user'
 
 const userStore = useUserStore()
 
 // 初始化用户状态
 onMounted(() => {
   userStore.initUser()
+  // 如果需要自动登录，添加以下代码
+  if (!userStore.isLoggedIn) {
+    const testUser = {
+      id: '1',
+      username: '测试用户',
+      avatar: ''
+    }
+    userStore.login(testUser)
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6Iua1i-ivleeetuaItyIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+  }
 })
 </script>
 
@@ -41,7 +51,8 @@ a {
   color: inherit;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -51,7 +62,8 @@ button {
   cursor: pointer;
 }
 
-input, textarea {
+input,
+textarea {
   outline: none;
 }
 
