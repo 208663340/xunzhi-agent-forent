@@ -15,7 +15,10 @@ import type {
   XunfeiFaceCompareReq,
   XunfeiFaceCompareResp,
   XunfeiFaceAttributeReq,
-  XunfeiFaceAttributeResp
+  XunfeiFaceAttributeResp,
+  ResumeAnalysisReq,
+  ResumeAnalysisResp,
+  RadarDataResp
 } from './types'
 
 // 创建axios实例
@@ -118,6 +121,12 @@ export const agentApi = {
   // 普通聊天请求（如果需要非SSE方式）
   chatSync: (data: UserMessageReq): Promise<AxiosResponse<ApiResponse<string>>> => {
     return api.post('/api/xunzhi-agent/admin/v1/agent/chat-sync', data)
+  },
+
+  // 获取雷达图数据
+  getRadarData: (): Promise<AxiosResponse<ApiResponse<RadarDataResp>>> => {
+    return api.get('/api/xunzhi/v1/agents/radar-chart', {
+    })
   }
 }
 
@@ -183,6 +192,21 @@ export const xunfeiApi = {
   //     }
   //   })
   // }
+}
+
+// 简历分析相关API
+export const resumeApi = {
+  // 获取简历分析结果
+  getAnalysis: (resumeId: string, candidateId: string): Promise<AxiosResponse<ApiResponse<ResumeAnalysisResp>>> => {
+    return api.get('/api/xunzhi-agent/admin/v1/resume/analysis', {
+      params: { resumeId, candidateId }
+    })
+  },
+
+  // 提交简历进行分析
+  submitForAnalysis: (data: ResumeAnalysisReq): Promise<AxiosResponse<ApiResponse<ResumeAnalysisResp>>> => {
+    return api.post('/api/xunzhi-agent/admin/v1/resume/analyze', data)
+  }
 }
 
 // 导出默认的axios实例

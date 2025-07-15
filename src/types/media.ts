@@ -3,9 +3,8 @@
 // 录音数据结构
 export interface Recording {
   blob: Blob
-  url: string
-  duration: string
   timestamp: string
+  duration: string
 }
 
 // 讯飞语音转文字请求参数
