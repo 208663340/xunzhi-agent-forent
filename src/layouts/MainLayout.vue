@@ -6,9 +6,7 @@
         <!-- 左侧Logo、标题和导航整体 -->
         <div class="header-left">
           <div class="logo-section">
-            <el-icon class="logo-icon" size="32">
-              <ChatDotRound />
-            </el-icon>
+            <el-icon class="logo-icon" size="32"><ChatDotRound /></el-icon>
             <span class="app-title">迅智多模态评测平台</span>
           </div>
 
@@ -17,7 +15,6 @@
             <router-link to="/" class="nav-link">首页</router-link>
             <router-link to="/chat" class="nav-link">对话</router-link>
             <router-link to="/agent-market" class="nav-link">Agent广场</router-link>
-            <router-link to="/resume-analysis" class="nav-link">综合评分报告</router-link>
             <router-link to="/about" class="nav-link">关于</router-link>
             <router-link to="/camera" class="nav-link">摄像头</router-link>
             <router-link to="/microphone" class="nav-link">麦克风</router-link>
@@ -30,21 +27,15 @@
             <el-dropdown v-if="userStore.isLoggedIn" @command="handleLogout">
               <div class="user-info" @click="handleAvatarClick">
                 <el-avatar :src="userStore.user?.avatar" size="small">
-                  <el-icon>
-                    <User />
-                  </el-icon>
+                  <el-icon><User /></el-icon>
                 </el-avatar>
                 <span class="username">{{ userStore.user?.username }}</span>
-                <el-icon class="dropdown-icon">
-                  <ArrowDown />
-                </el-icon>
+                <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="logout">
-                    <el-icon>
-                      <SwitchButton />
-                    </el-icon>
+                    <el-icon><SwitchButton /></el-icon>
                     退出登录
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -53,9 +44,7 @@
 
             <div v-else class="user-info" @click="handleAvatarClick">
               <el-avatar size="small">
-                <el-icon>
-                  <User />
-                </el-icon>
+                <el-icon><User /></el-icon>
               </el-avatar>
               <span class="username">未登录</span>
             </div>
@@ -74,25 +63,31 @@
     </main>
 
     <!-- 登录模态框 -->
-    <LoginModal v-model="showLoginModal" @switch-to-register="switchToRegister" />
+    <LoginModal
+      v-model="showLoginModal"
+      @switch-to-register="switchToRegister"
+    />
 
     <!-- 注册模态框 -->
-    <RegisterModal v-model="showRegisterModal" @switch-to-login="switchToLogin" />
+    <RegisterModal
+      v-model="showRegisterModal"
+      @switch-to-login="switchToLogin"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { useUserStore } from '@/stores/user'
 import {
   ChatDotRound,
   User,
   ArrowDown,
   SwitchButton
 } from '@element-plus/icons-vue'
-import * as LoginModal from '../components/LoginModal.vue'
-import * as RegisterModal from '../components/RegisterModal.vue'
+import LoginModal from '@/components/LoginModal.vue'
+import RegisterModal from '@/components/RegisterModal.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

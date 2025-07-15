@@ -14,6 +14,3 @@ export * from './sse'
 
 // 媒体相关类型
 export * from './media'
-
-// 简历分析相关类型
-export * from './resume'

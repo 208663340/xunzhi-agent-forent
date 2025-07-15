@@ -6,17 +6,20 @@
       <div class="agent-market-header">
         <h3>Agent广场</h3>
         <el-button type="primary" size="small" @click="goToChat">
-          <el-icon>
-            <ChatDotRound />
-          </el-icon>
+          <el-icon><ChatDotRound /></el-icon>
           返回对话
         </el-button>
       </div>
 
       <!-- 分类导航 -->
       <div class="category-nav">
-        <div v-for="category in categories" :key="category.id" class="category-item"
-          :class="{ active: category.id === activeCategory }" @click="switchCategory(category.id)">
+        <div
+          v-for="category in categories"
+          :key="category.id"
+          class="category-item"
+          :class="{ active: category.id === activeCategory }"
+          @click="switchCategory(category.id)"
+        >
           <el-icon>{{ category.icon }}</el-icon>
           <span>{{ category.name }}</span>
         </div>
@@ -27,17 +30,18 @@
     <div class="market-main">
       <!-- 顶部搜索栏 -->
       <div class="search-header">
-        <el-input v-model="searchKeyword" placeholder="搜索Agent..." class="search-input" clearable>
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索Agent..."
+          class="search-input"
+          clearable
+        >
           <template #prefix>
-            <el-icon>
-              <Search />
-            </el-icon>
+            <el-icon><Search /></el-icon>
           </template>
         </el-input>
         <el-button type="primary" @click="createAgent">
-          <el-icon>
-            <Plus />
-          </el-icon>
+          <el-icon><Plus /></el-icon>
           创建Agent
         </el-button>
       </div>
@@ -45,16 +49,20 @@
       <!-- Agent列表 -->
       <div class="agent-grid">
         <div v-if="!isApiConnected" class="api-notice">
-          <el-alert title="接口暂未开通" description="Agent广场功能正在开发中，敬请期待！" type="info" :closable="false" show-icon />
+          <el-alert
+            title="接口暂未开通"
+            description="Agent广场功能正在开发中，敬请期待！"
+            type="info"
+            :closable="false"
+            show-icon
+          />
         </div>
 
         <!-- 示例Agent卡片 -->
         <div v-for="agent in filteredAgents" :key="agent.id" class="agent-card">
           <div class="agent-avatar">
             <el-avatar :size="60" :src="agent.avatar">
-              <el-icon size="30">
-                <Robot />
-              </el-icon>
+              <el-icon size="30"><Robot /></el-icon>
             </el-avatar>
           </div>
           <div class="agent-info">
@@ -67,15 +75,11 @@
             </div>
             <div class="agent-stats">
               <span class="stat-item">
-                <el-icon>
-                  <User />
-                </el-icon>
+                <el-icon><User /></el-icon>
                 {{ agent.users }}人使用
               </span>
               <span class="stat-item">
-                <el-icon>
-                  <Star />
-                </el-icon>
+                <el-icon><Star /></el-icon>
                 {{ agent.rating }}
               </span>
             </div>
@@ -224,27 +228,23 @@ onMounted(() => {
 
 <style scoped>
 .agent-market-container {
-  height: 100vh;
+  height: 100%;
   display: flex;
   background: #f5f7fa;
+  min-height: calc(100vh - 64px);
 }
 
 .sidebar {
   width: 280px;
-  background: white;
+  background: #f5f7fa;
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
 }
 
 .agent-market-header {
   padding: 20px;
   border-bottom: 1px solid #e4e7ed;
-  background: white;
 }
 
 .agent-market-header h3 {
@@ -270,7 +270,7 @@ onMounted(() => {
 }
 
 .category-item:hover {
-  background: #f5f7fa;
+  background: white;
 }
 
 .category-item.active {
@@ -289,8 +289,6 @@ onMounted(() => {
   flex-direction: column;
   padding: 20px;
   background: white;
-  min-height: 100vh;
-  overflow-y: auto;
 }
 
 .search-header {
@@ -298,11 +296,6 @@ onMounted(() => {
   gap: 16px;
   margin-bottom: 24px;
   align-items: center;
-  position: sticky;
-  top: 0;
-  background: white;
-  padding: 16px 0;
-  z-index: 1;
 }
 
 .search-input {
@@ -402,29 +395,24 @@ onMounted(() => {
   }
 
   .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    border-right: none;
-    border-bottom: 1px solid #e4e7ed;
-  }
-
-  .category-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 16px;
-  }
-
-  .category-item {
-    margin: 0;
-    flex: 1;
-    min-width: 120px;
-    justify-content: center;
+    display: none;
   }
 
   .market-main {
     padding: 16px;
+  }
+
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    max-width: none;
   }
 }
 </style>

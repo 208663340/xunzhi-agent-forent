@@ -39,11 +39,6 @@ const router = createRouter({
           name: 'agent-market',
           component: () => import('../views/AgentMarketView.vue'),
         },
-        {
-          path: 'resume-analysis',
-          name: 'resume-analysis',
-          component: () => import('../views/ResumeAnalysisView.vue'),
-        },
       ]
     },
     // 独立页面（不使用MainLayout）
