@@ -63,7 +63,11 @@
               <el-icon><User /></el-icon>
             </el-avatar>
             <el-avatar v-else size="small" class="ai-avatar">
-              <img src="/avter/aiAvter.png" alt="AI头像" style="width: 100%; height: 100%; object-fit: cover;" />
+              <img
+                src="/avter/aiAvter.png"
+                alt="AI头像"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
             </el-avatar>
           </div>
 
@@ -87,7 +91,11 @@
         <div v-if="isLoading" class="message-item ai-message">
           <div class="message-avatar">
             <el-avatar size="small" class="ai-avatar">
-              <img src="/avter/aiAvter.png" alt="AI头像" style="width: 100%; height: 100%; object-fit: cover;" />
+              <img
+                src="/avter/aiAvter.png"
+                alt="AI头像"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
             </el-avatar>
           </div>
           <div class="message-content">
@@ -169,7 +177,19 @@ import { ref, reactive, nextTick, onMounted, computed, onUnmounted, watch } from
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Grid, Plus, ChatDotRound, User, Service, Delete, DocumentAdd, Picture, Microphone, VideoCamera, Setting } from '@element-plus/icons-vue'
+import {
+  Grid,
+  Plus,
+  ChatDotRound,
+  User,
+  Service,
+  Delete,
+  DocumentAdd,
+  Picture,
+  Microphone,
+  VideoCamera,
+  Setting,
+} from '@element-plus/icons-vue'
 import { aiConversationApi, aiMessageApi } from '@/api'
 import type { ChatMessage, ChatSession } from '@/types/chat'
 import { createSSEService, type SSEService, type StreamMessage } from '@/services/sseService'
@@ -206,8 +226,8 @@ const sendMessage = async () => {
   // 检查是否需要创建新会话
   let currentSession = sessions.value.find((s) => s.id === currentSessionId.value)
 
-  // 如果没有当前会话或者URL中没有sessionId，需要创建新会话
-  if (!currentSession || !route.params.sessionId) {
+  // 如果没有当前会话，需要创建新会话
+  if (!currentSession) {
     try {
       isLoading.value = true
 
@@ -242,7 +262,7 @@ const sendMessage = async () => {
       currentSessionId.value = sessionId
 
       // 动态更新URL，但不触发页面跳转
-      // 直接更新浏览器地址栏，不使用router跳转
+      // 使用history API直接更新URL，避免触发Vue Router
       const newUrl = `/chat/${sessionId}`
       window.history.replaceState(null, '', newUrl)
       console.log('已更新URL到:', newUrl)
@@ -481,22 +501,18 @@ const switchSession = (sessionId: string) => {
 const deleteSession = async (sessionId: string) => {
   try {
     // 显示确认弹窗
-    await ElMessageBox.confirm(
-      '删除后无法恢复，确定要删除这个会话吗？',
-      '删除会话',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
+    await ElMessageBox.confirm('删除后无法恢复，确定要删除这个会话吗？', '删除会话', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+      confirmButtonClass: 'el-button--danger',
+    })
 
     // 调用删除API
     await aiConversationApi.deleteConversation(sessionId)
 
     // 从本地会话列表中移除
-    const sessionIndex = sessions.value.findIndex(s => s.id === sessionId)
+    const sessionIndex = sessions.value.findIndex((s) => s.id === sessionId)
     if (sessionIndex >= 0) {
       sessions.value.splice(sessionIndex, 1)
     }
@@ -571,8 +587,6 @@ const loadSessionById = async (sessionId: string) => {
     if (!response || !response.data || !response.data.data) {
       console.warn('会话数据为空')
       ElMessage.warning('会话不存在或已被删除')
-      // 跳转到聊天首页
-      router.replace({ name: 'chat' })
       return
     }
 
@@ -628,14 +642,11 @@ const loadSessionById = async (sessionId: string) => {
     // 根据错误类型给出不同的处理
     if (error.response && error.response.status === 404) {
       ElMessage.warning('会话不存在或已被删除')
-      // 跳转到聊天首页
-      router.replace({ name: 'chat' })
     } else if (error.response && error.response.status === 401) {
       ElMessage.error('请先登录')
       router.push('/login')
     } else {
       ElMessage.error('加载会话失败，请稍后重试')
-      // 不跳转，让用户可以重试
     }
   }
 }
@@ -695,20 +706,33 @@ const loadConversations = async () => {
 // 监听路由参数变化
 watch(
   () => route.params.sessionId,
-  (newSessionId) => {
-    console.log('路由参数变化:', newSessionId)
+  (newSessionId, oldSessionId) => {
+    console.log('路由参数变化:', { newSessionId, oldSessionId, currentSessionId: currentSessionId.value })
+    
     if (newSessionId && typeof newSessionId === 'string') {
+      // 如果当前会话ID已经是这个值，不需要重复处理
+      if (currentSessionId.value === newSessionId) {
+        console.log('会话ID未变化，跳过处理')
+        return
+      }
+
+      // 检查是否是程序内部更新URL导致的变化（而非用户手动导航）
+      const existingSession = sessions.value.find((s) => s.id === newSessionId)
+      if (existingSession && existingSession.messages.length > 0) {
+        console.log('检测到内部URL更新，直接设置当前会话ID')
+        currentSessionId.value = newSessionId
+        return
+      }
+
       // 先设置当前会话ID
       currentSessionId.value = newSessionId
 
-      // 检查会话是否已在列表中
-      const existingSession = sessions.value.find((s) => s.id === newSessionId)
+      // 如果会话不存在于列表中，才尝试加载
       if (!existingSession) {
         console.log('会话不存在于列表中，尝试加载:', newSessionId)
         loadSessionById(newSessionId)
       } else {
         console.log('会话已存在于列表中:', existingSession.title)
-        // 会话已存在，不需要重新加载
       }
     } else {
       // 如果没有sessionId，清空当前会话
