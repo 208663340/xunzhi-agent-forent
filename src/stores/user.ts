@@ -19,6 +19,7 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn.value = false
     localStorage.removeItem('user')
     localStorage.removeItem('isLoggedIn')
+    localStorage.removeItem('token')
   }
 
   const initUser = () => {
@@ -36,6 +37,6 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     login,
     logout,
-    initUser
+    initUser,
   }
 })

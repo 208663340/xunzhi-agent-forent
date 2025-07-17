@@ -15,9 +15,16 @@
 
       <!-- 分类导航 -->
       <div class="category-nav">
-        <div v-for="category in categories" :key="category.id" class="category-item"
-          :class="{ active: category.id === activeCategory }" @click="switchCategory(category.id)">
-          <el-icon>{{ category.icon }}</el-icon>
+        <div
+          v-for="category in categories"
+          :key="category.id"
+          class="category-item"
+          :class="{ active: category.id === activeCategory }"
+          @click="switchCategory(category.id)"
+        >
+          <el-icon>
+            <component :is="category.icon" />
+          </el-icon>
           <span>{{ category.name }}</span>
         </div>
       </div>
@@ -44,16 +51,12 @@
 
       <!-- Agent列表 -->
       <div class="agent-grid">
-        <div v-if="!isApiConnected" class="api-notice">
-          <el-alert title="接口暂未开通" description="Agent广场功能正在开发中，敬请期待！" type="info" :closable="false" show-icon />
-        </div>
-
-        <!-- 示例Agent卡片 -->
+        <!-- Agent卡片 -->
         <div v-for="agent in filteredAgents" :key="agent.id" class="agent-card">
           <div class="agent-avatar">
             <el-avatar :size="60" :src="agent.avatar">
               <el-icon size="30">
-                <Robot />
+                <User />
               </el-icon>
             </el-avatar>
           </div>
@@ -81,12 +84,8 @@
             </div>
           </div>
           <div class="agent-actions">
-            <el-button type="primary" size="small" @click="useAgent(agent)">
-              使用
-            </el-button>
-            <el-button size="small" @click="viewAgent(agent)">
-              详情
-            </el-button>
+            <el-button type="primary" size="small" @click="useAgent(agent)"> 使用 </el-button>
+            <el-button size="small" @click="viewAgent(agent)"> 详情 </el-button>
           </div>
         </div>
       </div>
@@ -97,6 +96,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   Plus,
   Search,
@@ -108,7 +108,7 @@ import {
   Document,
   Picture,
   VideoCamera,
-  Microphone
+  Microphone,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -116,7 +116,6 @@ const router = useRouter()
 // 响应式数据
 const searchKeyword = ref('')
 const activeCategory = ref('all')
-const isApiConnected = ref(false) // 模拟接口未开通状态
 
 // 分类数据
 const categories = ref([
@@ -125,7 +124,7 @@ const categories = ref([
   { id: 'writing', name: '写作助手', icon: Document },
   { id: 'image', name: '图像处理', icon: Picture },
   { id: 'video', name: '视频处理', icon: VideoCamera },
-  { id: 'audio', name: '音频处理', icon: Microphone }
+  { id: 'audio', name: '音频处理', icon: Microphone },
 ])
 
 // 示例Agent数据
@@ -138,7 +137,7 @@ const agents = ref([
     tags: ['通用', 'GPT-4', '智能'],
     users: 1250,
     rating: 4.8,
-    category: 'chat'
+    category: 'chat',
   },
   {
     id: 2,
@@ -148,7 +147,7 @@ const agents = ref([
     tags: ['写作', '创作', '文案'],
     users: 890,
     rating: 4.6,
-    category: 'writing'
+    category: 'writing',
   },
   {
     id: 3,
@@ -158,7 +157,7 @@ const agents = ref([
     tags: ['图像', 'AI绘画', '设计'],
     users: 2100,
     rating: 4.9,
-    category: 'image'
+    category: 'image',
   },
   {
     id: 4,
@@ -168,8 +167,118 @@ const agents = ref([
     tags: ['编程', '代码', '开发'],
     users: 1680,
     rating: 4.7,
-    category: 'chat'
-  }
+    category: 'chat',
+  },
+  {
+    id: 5,
+    name: '翻译专家',
+    description: '多语言翻译助手，支持100+种语言互译',
+    avatar: '',
+    tags: ['翻译', '多语言', '国际化'],
+    users: 3200,
+    rating: 4.9,
+    category: 'chat',
+  },
+  {
+    id: 6,
+    name: '文档助手',
+    description: '智能文档生成和格式化工具',
+    avatar: '',
+    tags: ['文档', '格式化', '自动化'],
+    users: 756,
+    rating: 4.5,
+    category: 'writing',
+  },
+  {
+    id: 7,
+    name: '视频剪辑师',
+    description: 'AI驱动的视频编辑和特效制作',
+    avatar: '',
+    tags: ['视频', '剪辑', '特效'],
+    users: 1890,
+    rating: 4.7,
+    category: 'video',
+  },
+  {
+    id: 8,
+    name: '音频处理器',
+    description: '专业的音频降噪、增强和编辑工具',
+    avatar: '',
+    tags: ['音频', '降噪', '编辑'],
+    users: 1234,
+    rating: 4.6,
+    category: 'audio',
+  },
+  {
+    id: 9,
+    name: 'Logo设计师',
+    description: '智能Logo设计和品牌视觉创作',
+    avatar: '',
+    tags: ['Logo', '设计', '品牌'],
+    users: 2567,
+    rating: 4.8,
+    category: 'image',
+  },
+  {
+    id: 10,
+    name: '数据分析师',
+    description: '智能数据分析和可视化报告生成',
+    avatar: '',
+    tags: ['数据', '分析', '可视化'],
+    users: 987,
+    rating: 4.4,
+    category: 'chat',
+  },
+  {
+    id: 11,
+    name: '简历优化师',
+    description: '专业简历优化和求职指导',
+    avatar: '',
+    tags: ['简历', '求职', '优化'],
+    users: 1456,
+    rating: 4.7,
+    category: 'writing',
+  },
+  {
+    id: 12,
+    name: '短视频创作者',
+    description: '短视频脚本创作和拍摄指导',
+    avatar: '',
+    tags: ['短视频', '脚本', '创作'],
+    users: 3456,
+    rating: 4.9,
+    category: 'video',
+  },
+  {
+    id: 13,
+    name: '播客制作人',
+    description: '播客内容策划和音频后期制作',
+    avatar: '',
+    tags: ['播客', '策划', '制作'],
+    users: 678,
+    rating: 4.5,
+    category: 'audio',
+  },
+  {
+    id: 14,
+    name: '海报设计师',
+    description: '创意海报和宣传物料设计',
+    avatar: '',
+    tags: ['海报', '宣传', '创意'],
+    users: 1789,
+    rating: 4.6,
+    category: 'image',
+  },
+  {
+    id: 15,
+    name: '学习助手',
+    description: '个性化学习计划和知识点梳理',
+    avatar: '',
+    tags: ['学习', '教育', '个性化'],
+    users: 2890,
+    rating: 4.8,
+    category: 'chat',
+  },
 ])
 
 // 计算属性
@@ -178,15 +287,16 @@ const filteredAgents = computed(() => {
 
   // 按分类筛选
   if (activeCategory.value !== 'all') {
-    filtered = filtered.filter(agent => agent.category === activeCategory.value)
+    filtered = filtered.filter((agent) => agent.category === activeCategory.value)
   }
 
   // 按关键词搜索
   if (searchKeyword.value) {
-    filtered = filtered.filter(agent =>
-      agent.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      agent.description.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      agent.tags.some(tag => tag.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+    filtered = filtered.filter(
+      (agent) =>
+        agent.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
+        agent.description.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
+        agent.tags.some((tag) => tag.toLowerCase().includes(searchKeyword.value.toLowerCase())),
     )
   }
 
@@ -203,18 +313,27 @@ const switchCategory = (categoryId: string) => {
 }
 
 const createAgent = () => {
-  // TODO: 实现创建Agent功能
-  console.log('创建Agent')
+  ElMessage({
+    message: '创建Agent功能全力开发中，敬请期待！',
+    type: 'info',
+    duration: 3000,
+  })
 }
 
 const useAgent = (agent: any) => {
-  // TODO: 实现使用Agent功能
-  console.log('使用Agent:', agent.name)
+  ElMessage({
+    message: `${agent.name} 功能全力开发中，敬请期待！`,
+    type: 'info',
+    duration: 3000,
+  })
 }
 
 const viewAgent = (agent: any) => {
-  // TODO: 实现查看Agent详情功能
-  console.log('查看Agent详情:', agent.name)
+  ElMessage({
+    message: `${agent.name} 详情功能全力开发中，敬请期待！`,
+    type: 'info',
+    duration: 3000,
+  })
 }
 
 onMounted(() => {
@@ -226,57 +345,66 @@ onMounted(() => {
 .agent-market-container {
   height: 100vh;
   display: flex;
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .sidebar {
   width: 280px;
-  background: white;
-  border-right: 1px solid #e4e7ed;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(228, 231, 237, 0.3);
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .agent-market-header {
-  padding: 20px;
-  border-bottom: 1px solid #e4e7ed;
-  background: white;
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(228, 231, 237, 0.3);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .agent-market-header h3 {
   margin: 0 0 16px 0;
-  font-size: 16px;
-  color: #333;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .category-nav {
   flex: 1;
-  padding: 8px;
+  padding: 12px;
 }
 
 .category-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 4px;
-  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 6px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  gap: 8px;
+  transition: all 0.3s ease;
+  gap: 12px;
+  font-weight: 500;
 }
 
 .category-item:hover {
-  background: #f5f7fa;
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateX(4px);
 }
 
 .category-item.active {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
-  color: #409eff;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .category-item span {
@@ -287,105 +415,153 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  background: white;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   min-height: 100vh;
   overflow-y: auto;
 }
 
 .search-header {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 20px;
+  margin-bottom: 32px;
   align-items: center;
   position: sticky;
   top: 0;
-  background: white;
-  padding: 16px 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 20px 0;
   z-index: 1;
+  border-radius: 16px;
+  margin: 0 -8px 32px -8px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .search-input {
   flex: 1;
-  max-width: 400px;
+  max-width: 450px;
 }
 
 .agent-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
   flex: 1;
 }
 
-.api-notice {
-  grid-column: 1 / -1;
-  margin-bottom: 20px;
+.agent-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 24px;
+  transition: all 0.4s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
 
-.agent-card {
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+.agent-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .agent-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 16px 48px rgba(102, 126, 234, 0.2);
+  transform: translateY(-8px);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.agent-card:hover::before {
+  opacity: 1;
 }
 
 .agent-avatar {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.agent-avatar .el-icon {
+  font-size: 48px;
+  color: #667eea;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .agent-info {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .agent-name {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  text-align: center;
 }
 
 .agent-description {
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
   font-size: 14px;
-  color: #666;
-  line-height: 1.5;
+  color: #5a6c7d;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .agent-tags {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+  justify-content: center;
 }
 
 .agent-stats {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   font-size: 13px;
-  color: #999;
+  color: #8492a6;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-weight: 500;
 }
 
 .agent-actions {
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 12px;
+  justify-content: center;
 }
 
 /* 响应式设计 */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 260px;
+  }
+
+  .agent-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+}
+
 @media (max-width: 1024px) {
   .sidebar {
     width: 240px;
@@ -393,12 +569,18 @@ onMounted(() => {
 
   .agent-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .market-main {
+    padding: 20px;
   }
 }
 
 @media (max-width: 768px) {
   .agent-market-container {
     flex-direction: column;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
   }
 
   .sidebar {
@@ -406,13 +588,14 @@ onMounted(() => {
     height: auto;
     position: relative;
     border-right: none;
-    border-bottom: 1px solid #e4e7ed;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   }
 
   .category-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     padding: 16px;
   }
 
@@ -421,10 +604,47 @@ onMounted(() => {
     flex: 1;
     min-width: 120px;
     justify-content: center;
+    padding: 12px 16px;
+    border-radius: 10px;
   }
 
   .market-main {
     padding: 16px;
+  }
+
+  .search-header {
+    margin: 0 -8px 24px -8px;
+    padding: 16px 20px;
+  }
+
+  .agent-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .agent-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .market-main {
+    padding: 12px;
+  }
+
+  .search-header {
+    padding: 12px 16px;
+    margin: 0 -4px 20px -4px;
+  }
+
+  .agent-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .category-item {
+    min-width: 100px;
+    padding: 10px 12px;
   }
 }
 </style>

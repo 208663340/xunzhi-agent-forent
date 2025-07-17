@@ -5,18 +5,11 @@ import type {
   SSEData,
   StreamMessage,
   SSEConfig,
-  SSEEventCallback
+  SSEEventCallback,
 } from '@/types/sse'
 
 // 重新导出类型供外部使用
-export type {
-  SSEChoice,
-  SSEWorkflowStep,
-  SSEData,
-  StreamMessage,
-  SSEConfig,
-  SSEEventCallback
-}
+export type { SSEChoice, SSEWorkflowStep, SSEData, StreamMessage, SSEConfig, SSEEventCallback }
 
 export class SSEService {
   private eventSource: EventSource | null = null
@@ -33,7 +26,7 @@ export class SSEService {
       retryInterval: 3000,
       maxRetries: 3,
       withCredentials: false,
-      ...config
+      ...config,
     }
     this.callbacks = callbacks
   }
@@ -61,20 +54,25 @@ export class SSEService {
 
   private async connectWithPost(): Promise<void> {
     try {
+      // 重置状态
+      this.reset()
+      
       // 创建AbortController用于取消请求
       this.abortController = new AbortController()
+      
+      console.log('开始建立POST SSE连接...')
 
       const response = await fetch(this.config.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
+          Accept: 'text/event-stream',
           'Cache-Control': 'no-cache',
-          ...this.config.headers
+          ...this.config.headers,
         },
         body: JSON.stringify(this.config.body),
         credentials: this.config.withCredentials ? 'include' : 'same-origin',
-        signal: this.abortController.signal
+        signal: this.abortController.signal,
       })
 
       if (!response.ok) {
@@ -85,10 +83,20 @@ export class SSEService {
         throw new Error('Response body is null')
       }
 
+      this.isConnected = true
+      console.log('POST SSE连接建立成功')
       this.callbacks.onOpen?.()
-      this.readStream(response.body)
+      await this.readStream(response.body)
     } catch (error) {
+      // 检查是否是主动断开连接导致的AbortError
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('SSE连接被主动中断')
+        // 如果是主动断开，不需要触发错误回调
+        return
+      }
+      
       console.error('Failed to connect with POST:', error)
+      this.isConnected = false
       this.callbacks.onError?.(error as Error)
     }
   }
@@ -99,10 +107,18 @@ export class SSEService {
     let buffer = ''
 
     try {
+      console.log('开始读取SSE流数据...')
       while (true) {
+        // 检查连接状态，如果已断开则停止读取
+        if (!this.isConnected) {
+          console.log('连接已断开，停止读取流')
+          break
+        }
+        
         const { done, value } = await reader.read()
 
         if (done) {
+          console.log('SSE流读取完成')
           this.callbacks.onClose?.()
           break
         }
@@ -116,10 +132,21 @@ export class SSEService {
         }
       }
     } catch (error) {
+      // 检查是否是主动断开连接导致的错误
+      if (error instanceof Error && (error.name === 'AbortError' || !this.isConnected)) {
+        console.log('SSE流读取被中断')
+        return
+      }
+      
       console.error('Error reading stream:', error)
       this.callbacks.onError?.(error as Error)
     } finally {
-      reader.releaseLock()
+      try {
+        reader.releaseLock()
+        console.log('SSE流读取器已释放')
+      } catch (error) {
+        console.warn('释放流读取器时出错:', error)
+      }
     }
   }
 
@@ -171,11 +198,11 @@ export class SSEService {
       }
 
       try {
-         const sseData: SSEData = JSON.parse(data)
-         this.handleSSEData(sseData)
-       } catch (error) {
-         console.error('Failed to parse SSE data:', error, 'Raw data:', data)
-       }
+        const sseData: SSEData = JSON.parse(data)
+        this.handleSSEData(sseData)
+      } catch (error) {
+        console.error('Failed to parse SSE data:', error, 'Raw data:', data)
+      }
     }
   }
 
@@ -183,11 +210,11 @@ export class SSEService {
   private createConnection(): void {
     try {
       // 构建URL，如果有headers需要通过查询参数传递
-      let url = this.config.url
+      const url = this.config.url
 
       // 创建EventSource
       this.eventSource = new EventSource(url, {
-        withCredentials: this.config.withCredentials
+        withCredentials: this.config.withCredentials,
       })
 
       this.setupEventListeners()
@@ -235,7 +262,6 @@ export class SSEService {
 
   // 处理SSE数据
   private handleSSEData(sseData: SSEData): void {
-
     console.log('收到SSE数据:', sseData)
 
     // 检查响应状态
@@ -264,7 +290,7 @@ export class SSEService {
           progress: sseData.workflow_step ? sseData.workflow_step.progress : null,
           step: sseData.workflow_step ? sseData.workflow_step.seq : null,
           timestamp: new Date(sseData.created * 1000),
-          isComplete: !!choice.finish_reason
+          isComplete: !!choice.finish_reason,
         }
 
         // 触发消息回调
@@ -309,18 +335,47 @@ export class SSEService {
 
   // 断开连接
   disconnect(): void {
+    console.log('正在断开SSE连接...')
+    
+    // 设置断开状态，防止重复操作
+    if (!this.isConnected && !this.eventSource && !this.abortController) {
+      console.log('SSE连接已经断开')
+      return
+    }
+    
+    this.isConnected = false
+    
+    // 关闭EventSource连接
     if (this.eventSource) {
-      this.eventSource.close()
+      try {
+        this.eventSource.close()
+        console.log('EventSource已关闭')
+      } catch (error) {
+        console.warn('关闭EventSource时出错:', error)
+      }
       this.eventSource = null
     }
+    
     // 对于POST请求，需要中断fetch请求
     if (this.abortController) {
-      this.abortController.abort()
+      try {
+        // 检查AbortController是否已经被中断
+        if (!this.abortController.signal.aborted) {
+          this.abortController.abort()
+          console.log('Fetch请求已中断')
+        }
+      } catch (error) {
+        console.warn('中断fetch请求时出错:', error)
+      }
       this.abortController = null
     }
-    this.isConnected = false
+    
     this.retryCount = 0
-    this.callbacks.onClose?.()
+    
+    // 延迟调用onClose回调，避免在中断过程中触发错误
+    setTimeout(() => {
+      this.callbacks.onClose?.()
+    }, 0)
   }
 
   // 重置状态
@@ -341,7 +396,7 @@ export class SSEService {
       isConnected: this.isConnected,
       retryCount: this.retryCount,
       currentMessageId: this.currentMessageId,
-      accumulatedContent: this.accumulatedContent
+      accumulatedContent: this.accumulatedContent,
     }
   }
 
@@ -365,5 +420,5 @@ export function createSSEService(config: SSEConfig, callbacks?: SSEEventCallback
 export const defaultSSEConfig: Partial<SSEConfig> = {
   retryInterval: 3000,
   maxRetries: 3,
-  withCredentials: false
+  withCredentials: false,
 }

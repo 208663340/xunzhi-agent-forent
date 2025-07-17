@@ -33,3 +33,35 @@ export interface UserRegisterReq {
   mail?: string
   realName?: string
 }
+
+// 用户更新请求参数
+export interface UserUpdateReq {
+  username: string
+  password?: string
+  realName?: string
+  phone?: string
+  mail?: string
+}
+
+// 管理员用户请求参数
+export interface AdminUserReq {
+  userId: number
+}
+
+// 用户响应DTO
+export interface UserRespDTO {
+  id: number
+  username: string
+  realName: string
+  phone: string
+  mail: string
+}
+
+// 用户实际响应DTO（无脱敏）
+export interface UserActualRespDTO {
+  id: number
+  username: string
+  realName: string
+  phone: string
+  mail: string
+}

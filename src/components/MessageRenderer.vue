@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, defineProps, withDefaults } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import DOMPurify from 'dompurify'
@@ -20,16 +20,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 配置 marked
 marked.setOptions({
-  highlight: function(code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(code, { language: lang }).value
-      } catch (err) {
-        console.warn('代码高亮失败:', err)
-      }
-    }
-    return hljs.highlightAuto(code).value
-  },
   breaks: true, // 支持换行
   gfm: true, // 启用GitHub风格的Markdown
 })
@@ -43,7 +33,21 @@ const renderedContent = computed(() => {
 
   try {
     // AI消息进行Markdown解析
-    const html = marked.parse(props.content)
+    let html = marked.parse(props.content) as string
+    
+    // 手动处理代码高亮
+    html = html.replace(/<pre><code class="language-(\w+)">(.*?)<\/code><\/pre>/gs, (match, lang, code) => {
+      try {
+        if (hljs.getLanguage(lang)) {
+          const highlighted = hljs.highlight(code, { language: lang }).value
+          return `<pre><code class="language-${lang}">${highlighted}</code></pre>`
+        }
+      } catch (err) {
+        console.warn('代码高亮失败:', err)
+      }
+      return match
+    })
+    
     return sanitizeHtml(html)
   } catch (error) {
     console.error('Markdown解析失败:', error)

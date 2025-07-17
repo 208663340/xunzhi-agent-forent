@@ -13,17 +13,16 @@ const userStore = useUserStore()
 
 // 初始化用户状态
 onMounted(() => {
-  userStore.initUser()
-  // 如果需要自动登录，添加以下代码
-  if (!userStore.isLoggedIn) {
-    const testUser = {
-      id: '1',
-      username: '测试用户',
-      avatar: ''
-    }
-    userStore.login(testUser)
-    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6Iua1i-ivleeetuaItyIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+  // 清理可能存在的测试token
+  const token = localStorage.getItem('token')
+  if (token && token.includes('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')) {
+    console.log('检测到测试token，正在清理...')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('isLoggedIn')
   }
+  
+  userStore.initUser()
 })
 </script>
 

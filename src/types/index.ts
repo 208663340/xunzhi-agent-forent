@@ -17,3 +17,6 @@ export * from './media'
 
 // 简历分析相关类型
 export * from './resume'
+
+// 面试相关类型
+export * from './interview'

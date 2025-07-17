@@ -123,7 +123,7 @@ const handleLogin = async () => {
         // 调用真实登录API
         const response = await userApi.login({
           username: loginForm.username,
-          password: loginForm.password
+          password: loginForm.password,
         })
 
         console.log('登录响应:', response)

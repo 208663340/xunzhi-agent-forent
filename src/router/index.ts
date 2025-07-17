@@ -19,18 +19,9 @@ const router = createRouter({
           name: 'about',
           component: () => import('../views/AboutView.vue'),
         },
+
         {
-          path: 'camera',
-          name: 'camera',
-          component: () => import('../views/CameraView.vue'),
-        },
-        {
-          path: 'microphone',
-          name: 'microphone',
-          component: () => import('../views/MicrophoneView.vue'),
-        },
-        {
-          path: 'chat',
+          path: 'chat/:sessionId?',
           name: 'chat',
           component: () => import('../views/ChatView.vue'),
         },
@@ -39,12 +30,14 @@ const router = createRouter({
           name: 'agent-market',
           component: () => import('../views/AgentMarketView.vue'),
         },
+
+
         {
-          path: 'resume-analysis',
-          name: 'resume-analysis',
-          component: () => import('../views/ResumeAnalysisView.vue'),
+          path: 'interview',
+          name: 'interview',
+          component: () => import('../views/InterviewView.vue'),
         },
-      ]
+      ],
     },
     // 独立页面（不使用MainLayout）
     {

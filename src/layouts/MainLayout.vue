@@ -15,12 +15,10 @@
           <!-- 导航栏 -->
           <nav class="header-nav">
             <router-link to="/" class="nav-link">首页</router-link>
-            <router-link to="/chat" class="nav-link">对话</router-link>
+            <router-link to="/chat" class="nav-link" :class="{ 'router-link-active': isChatActive }">对话</router-link>
             <router-link to="/agent-market" class="nav-link">Agent广场</router-link>
-            <router-link to="/resume-analysis" class="nav-link">综合评分报告</router-link>
+            <router-link to="/interview" class="nav-link">面试室</router-link>
             <router-link to="/about" class="nav-link">关于</router-link>
-            <router-link to="/camera" class="nav-link">摄像头</router-link>
-            <router-link to="/microphone" class="nav-link">麦克风</router-link>
           </nav>
         </div>
 
@@ -82,8 +80,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import {
   ChatDotRound,
@@ -91,11 +89,17 @@ import {
   ArrowDown,
   SwitchButton
 } from '@element-plus/icons-vue'
-import * as LoginModal from '../components/LoginModal.vue'
-import * as RegisterModal from '../components/RegisterModal.vue'
+import LoginModal from '../components/LoginModal.vue'
+import RegisterModal from '../components/RegisterModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+// 计算当前路由是否为聊天页面
+const isChatActive = computed(() => {
+  return route.path.startsWith('/chat')
+})
 
 // 模态框状态
 const showLoginModal = ref(false)
