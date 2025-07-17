@@ -6,6 +6,7 @@ export interface ApiResponse<T = any> {
   message: string
   data: T
   success: boolean
+  requestId?: string
 }
 
 // HTTP请求方法

@@ -54,7 +54,16 @@ const stats = ref([
 // 智能体数据
 const agents = ref([
   {
-    id: 6,
+    id: 1,
+    name: '智能面试室',
+    description: '上传简历，AI智能生成个性化面试题目，全程录音评测',
+    icon: '🎯',
+    color: '#FF6B6B',
+    category: 'interview',
+    isSpecial: true,
+  },
+  {
+    id: 2,
     name: '前端面试官',
     description: 'HTML/CSS/JavaScript/Vue/React技术栈面试评测',
     icon: '🌐',
@@ -62,7 +71,7 @@ const agents = ref([
     category: 'frontend',
   },
   {
-    id: 2,
+    id: 3,
     name: '后端面试官',
     description: 'Java/Python/Node.js/数据库等后端技术面试',
     icon: '⚙️',
@@ -70,7 +79,7 @@ const agents = ref([
     category: 'backend',
   },
   {
-    id: 3,
+    id: 4,
     name: '测试面试官',
     description: '软件测试理论与实践、自动化测试面试评测',
     icon: '🔍',
@@ -78,7 +87,7 @@ const agents = ref([
     category: 'testing',
   },
   {
-    id: 4,
+    id: 5,
     name: '物联网面试官',
     description: '嵌入式开发、传感器、通信协议面试评测',
     icon: '📡',
@@ -86,7 +95,7 @@ const agents = ref([
     category: 'iot',
   },
   {
-    id: 5,
+    id: 6,
     name: '算法面试官',
     description: '数据结构与算法、编程题目面试评测',
     icon: '🧮',
@@ -94,7 +103,7 @@ const agents = ref([
     category: 'algorithm',
   },
   {
-    id: 6,
+    id: 7,
     name: '产品面试官',
     description: '产品设计、用户体验、商业分析面试评测',
     icon: '💡',
@@ -139,11 +148,16 @@ const handleCardLeave = (index: number) => {
 
 // 开始面试
 const startInterview = (agent: any) => {
-  // 跳转到对话页面，可以传递智能体信息
-  router.push({
-    path: '/chat',
-    query: { agent: agent.category },
-  })
+  if (agent.category === 'interview') {
+    // 跳转到智能面试页面
+    router.push('/interview')
+  } else {
+    // 跳转到对话页面，可以传递智能体信息
+    router.push({
+      path: '/chat',
+      query: { agent: agent.category },
+    })
+  }
 }
 
 // 组件挂载后的初始化
@@ -280,7 +294,7 @@ onMounted(() => {
           v-for="(agent, index) in agents"
           :key="agent.id"
           class="agent-card"
-          :class="`card-${index % 3}`"
+          :class="[`card-${index % 3}`, { 'special-card': agent.isSpecial }]"
           @click="startInterview(agent)"
           @mouseenter="handleCardHover(index)"
           @mouseleave="handleCardLeave(index)"
@@ -1405,5 +1419,73 @@ onMounted(() => {
   .stats-container {
     grid-template-columns: 1fr;
   }
+}
+
+/* 特殊卡片样式 - 智能面试室 */
+.special-card {
+  position: relative;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  color: white;
+  border: 3px solid #ff4757;
+  animation: specialGlow 2s ease-in-out infinite alternate;
+}
+
+.special-card::before {
+  content: '🔥 热门推荐';
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+}
+
+.special-card .agent-name,
+.special-card .agent-description {
+  color: white;
+}
+
+.special-card .agent-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.special-card .start-btn {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #ff4757;
+  font-weight: 700;
+}
+
+.special-card:hover .start-btn {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+.special-card .skill-bar {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.special-card .skill-progress {
+  background: linear-gradient(90deg, #ffffff, #f8f9fa);
+}
+
+@keyframes specialGlow {
+  0% {
+    box-shadow: 0 10px 40px rgba(255, 107, 107, 0.3), 0 0 0 0 rgba(255, 107, 107, 0.4);
+  }
+  100% {
+    box-shadow: 0 25px 60px rgba(255, 107, 107, 0.4), 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+}
+
+.special-card:hover {
+  transform: translateY(-20px) scale(1.05);
+  box-shadow: 0 30px 80px rgba(255, 107, 107, 0.5);
 }
 </style>

@@ -6,12 +6,7 @@
         <p>欢迎使用智能问答系统</p>
       </div>
 
-      <el-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="loginRules"
-        class="login-form"
-      >
+      <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
         <el-form-item prop="username">
           <el-input
             v-model="loginForm.username"
@@ -51,8 +46,6 @@
         <el-button type="text" @click="goToRegister">立即注册</el-button>
       </div>
     </div>
-
-
   </div>
 </template>
 
@@ -72,24 +65,20 @@ const loading = ref(false)
 // 登录表单
 const loginForm = reactive({
   username: '',
-  password: ''
+  password: '',
 })
-
-
 
 // 登录表单验证规则
 const loginRules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
-  ]
+    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' },
+  ],
 }
-
-
 
 // 处理登录
 const handleLogin = async () => {
@@ -105,7 +94,7 @@ const handleLogin = async () => {
         // 调用真实登录API
         const response = await userApi.login({
           username: loginForm.username,
-          password: loginForm.password
+          password: loginForm.password,
         })
 
         console.log('登录响应:', response.data)
@@ -114,12 +103,17 @@ const handleLogin = async () => {
           // 保存token
           localStorage.setItem('token', response.data.data.token)
 
+          // 从后端响应中获取完整用户信息
           const userData = {
-            id: '1', // 这里应该从后端返回
-            username: loginForm.username,
-            avatar: '',
+            id: response.data.data.id || '1',
+            username: response.data.data.username || loginForm.username,
+            realName: response.data.data.realName || response.data.data.username,
+            phone: response.data.data.phone || '',
+            mail: response.data.data.mail || '',
+            avatar: response.data.data.avatar || '',
           }
 
+          console.log('保存的用户数据:', userData)
           userStore.login(userData)
           ElMessage.success('登录成功')
           router.push('/')
